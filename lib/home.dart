@@ -17,7 +17,7 @@
     NoteDataSource(List<Appointment> source) {
       appointments = source;
     }
-  }
+  }g
 
   class _CalendarScreenState extends State<CalendarScreen> {
 
