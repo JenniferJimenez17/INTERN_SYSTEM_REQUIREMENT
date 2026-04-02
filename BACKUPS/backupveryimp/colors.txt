@@ -1,0 +1,35 @@
+    const Text(
+            "LS = 7 Days",
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Colors.blue,
+    ),
+  ),
+  Gap(5),
+   const Text(
+    "LP = 14 Days",
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Colors.yellow,
+    ),
+  ),
+  Gap(5),
+   const Text(
+    "AUMV = 30 Days",
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Colors.green,
+    ),
+  ),
+   Gap(5),
+   const Text(
+    "ACMR = 35 Days",
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: Colors.red,
+    ),
+  ),

@@ -1,0 +1,113 @@
+import 'package:agno_project/home.dart';
+import 'package:email_validator/email_validator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
+
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool showPassword = true;
+  final formKey = GlobalKey<FormState>();
+  final email = TextEditingController();
+  final password = TextEditingController();
+ 
+
+  void toggleShowPassword() {
+    setState(() {
+      showPassword = !showPassword;
+    });
+  }
+
+  void login() async{
+    if(formKey.currentState!.validate()){
+    await FirebaseAuth.instance.signInWithEmailAndPassword
+    (email: email.text, password: password.text).then((user) {
+      Navigator.of(context).push(CupertinoPageRoute(builder: (_) => CalendarScreen()), ).catchError((error) {
+        print(error);
+      });
+    });
+     print("Success");
+    }
+
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Login'),
+        
+      ),
+      body: Container(
+        padding: EdgeInsets.all(12),
+       // decoration: BoxDecoration(
+
+        //),
+
+        child: Form(
+          key: formKey,
+          child: Column(
+        
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          
+            children: [
+              Gap(20),
+              Text('Sign In Your Account'),
+              Gap(16),
+              TextFormField(
+                controller: email,
+                validator: (value){
+                  if(value == null || value.isEmpty){
+                    return 'Required. Please Enter your Email';
+                  }
+                  if(!EmailValidator.validate(value)){
+                    return 'Required. Please Enter a Valid Email Address';
+                    
+                  }
+                  return null;
+                },
+                decoration: InputDecoration(
+                  label: Text('Email Address'),
+                  border: OutlineInputBorder()
+                ),
+              ),
+              Gap(12),
+              TextFormField(
+                controller: password,
+                obscureText: showPassword,
+                validator: (value){
+                   if(value == null || value.isEmpty){
+                    return 'Required. Please Enter your Password';
+                  }
+                  if(value.length <= 5) {
+                     return 'Password should be more than 5 characters';
+
+                  }
+                  return null;
+                },
+                // maxLength: 8,
+                decoration: InputDecoration(
+                  label: Text('Password'),
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(onPressed: toggleShowPassword,
+                   icon: Icon( showPassword ? Icons.visibility : Icons.visibility_off))
+          
+                ),
+              ),
+              Gap(12),
+              ElevatedButton(onPressed: login, child: const Text('Login'))
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

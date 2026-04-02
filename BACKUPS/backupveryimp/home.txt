@@ -1,0 +1,268 @@
+import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_calendar/calendar.dart';
+
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({super.key});
+
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+
+class NoteDataSource extends CalendarDataSource {
+  NoteDataSource(List<Appointment> source) {
+    appointments = source;
+  }
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+
+// final List<Appointment> _appointments = [];
+late NoteDataSource _dataSource;
+
+
+final List<Appointment> _appointments = [
+  Appointment(
+    startTime: DateTime(2026, 1, 1),
+    endTime: DateTime(2026, 1, 1, 1),
+    subject: 'Support',
+    
+    color: Colors.orange,
+  ),
+  Appointment(
+    startTime: DateTime(2026, 1, 1),
+    endTime: DateTime(2026, 1, 1, 2),
+    subject: 'General',
+    color: Colors.red,
+  ),
+  Appointment(
+    startTime: DateTime(2026, 1, 2),
+    endTime: DateTime(2026, 1, 2, 1),
+    subject: 'Scrum',
+    color: Colors.grey,
+  ),
+  // ... add for all days you want to prepopulate
+];
+
+
+@override
+void initState() {
+  super.initState();
+    _dataSource = NoteDataSource(_appointments);
+  
+}
+
+
+
+  @override
+  Widget build(BuildContext context) {
+
+    final DateTime now = DateTime.now();
+  
+    return Scaffold(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: 200,
+            right: 5,
+            top: 60,
+          ),
+
+
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              /// 🔹 Main Calendar (Normal Size)
+               const Text(
+                "January",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 500,
+                child: SfCalendar(
+  view: CalendarView.month,
+  dataSource: _dataSource,
+  todayHighlightColor: Colors.blue,
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 1, 1),
+  monthViewSettings: const MonthViewSettings(
+    // showAgenda: false,
+  ),
+  appointmentBuilder: (context, details) {
+  final Appointment appt = details.appointments.first;
+
+  return Container(
+    width: details.bounds.width,
+    height: details.bounds.height,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    decoration: BoxDecoration(
+      color: appt.color,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    alignment: Alignment.centerLeft,
+    child: Text(
+      appt.subject,
+      style: const TextStyle(
+        fontSize: 12,
+        color: Colors.black,
+        fontWeight: FontWeight.w500,
+      ),
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
+},
+
+
+  onTap: (CalendarTapDetails details) async {
+    if (details.targetElement == CalendarElement.calendarCell) {
+      final DateTime selectedDate = details.date!;
+      TextEditingController controller = TextEditingController();
+
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Add Note"),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.text,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+  ElevatedButton(
+  onPressed: () {
+    if (controller.text.isNotEmpty) {
+      final newAppt = Appointment(
+        startTime: selectedDate,
+        endTime: selectedDate.add(const Duration(hours: 1)),
+        subject: controller.text.trim(),
+        color: Colors.blue,
+      );
+
+      setState(() {
+        _appointments.add(newAppt);
+
+        // 🔥 Recreate the datasource completely
+        _dataSource = NoteDataSource(_appointments);
+      });
+    }
+
+    Navigator.pop(context);
+  },
+  child: const Text("Save"),
+),
+
+
+
+
+
+
+
+          ],
+        ),
+      );
+    }
+  },
+)
+
+
+              ),
+
+              const SizedBox(height: 30),
+
+              /// 🔹 Small February Calendar
+              const Text(
+                "February",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 500,
+                child: SfCalendar(
+                  view: CalendarView.month,
+                  // headerHeight: 40,
+                  // viewHeaderHeight: 40,
+                   todayHighlightColor: Colors.blue,
+                   allowViewNavigation: false,
+                  monthViewSettings: const MonthViewSettings(
+
+                    showAgenda: false,
+                  ),
+                  viewNavigationMode: ViewNavigationMode.none,
+                  initialDisplayDate: DateTime(2026, 2, 1),
+                  showNavigationArrow: false,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              /// 🔹 Small March Calendar (Below February)
+              const Text(
+                "March",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 500,
+                child: SfCalendar(
+                  view: CalendarView.month,
+                  // headerHeight: 40,
+                  // viewHeaderHeight: 40,
+                 
+                  allowViewNavigation: false,
+                  viewNavigationMode: ViewNavigationMode.none,
+                  todayHighlightColor: Colors.blue,
+                  monthViewSettings: const MonthViewSettings(
+                  
+                    showAgenda: false,
+                  ),
+                  initialDisplayDate: DateTime(2026, 3, 1),
+                  showNavigationArrow: false,
+                   
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              const Text(
+                "April",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 500,
+                child: SfCalendar(
+                  view: CalendarView.month,
+                  // headerHeight: 40,
+                  // viewHeaderHeight: 40,
+                  todayHighlightColor: Colors.blue,
+                  allowViewNavigation: false,
+                  monthViewSettings: const MonthViewSettings(
+                    showAgenda: false,
+                  ),
+                  viewNavigationMode: ViewNavigationMode.none,
+                  initialDisplayDate: DateTime(2026, 4, 1),
+                  showNavigationArrow: false,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

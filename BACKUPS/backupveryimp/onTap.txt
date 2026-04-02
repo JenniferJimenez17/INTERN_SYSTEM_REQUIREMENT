@@ -1,0 +1,106 @@
+onTap: (CalendarTapDetails details) async {
+
+    /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+  /// 🔵 1️⃣ IF USER TAPS EXISTING APPOINTMENT
+  if (details.targetElement == CalendarElement.appointment) {
+
+    final Appointment appt = details.appointments!.first;
+
+    TextEditingController controller =
+        TextEditingController(text: appt.subject);
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Appointment"),
+        content: TextField(
+          controller: controller,
+        ),
+        actions: [
+
+          /// ❌ DELETE
+          TextButton(
+            onPressed: () async {
+              await removedaPattern(appt);
+              setState(() {});
+              Navigator.pop(context);
+            },
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+
+          /// 💾 SAVE EDIT
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.isEmpty) return;
+
+              final newText = controller.text.trim();
+
+              // 🔥 Update Firestore FIRST
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(selectedGroup)
+                  .collection('appointments')
+                  .doc(appt.id.toString())
+                  .update({
+                'subject': newText,
+              });
+
+              // 🔥 Then update UI
+              setState(() {
+                appt.subject = newText;
+                _dataSource = NoteDataSource(_appointments);
+              });
+
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🟢 2️⃣ IF USER TAPS EMPTY CELL (ADD NEW)
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+    final DateTime selectedDate = details.date!;
+    TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+},

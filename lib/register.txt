@@ -1,0 +1,153 @@
+import 'package:agno_project/home.dart';
+import 'package:email_validator/email_validator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  @override
+
+  bool showPassword = true;
+  final formKey = GlobalKey<FormState>();
+  final email = TextEditingController();
+  final password = TextEditingController();
+   final confirmPass = TextEditingController();
+
+    void toggleShowPassword() {
+    setState(() {
+      showPassword = !showPassword;
+    });
+  }
+
+ void register() async {
+  if (!formKey.currentState!.validate()) return;
+
+  if (password.text != confirmPass.text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Passwords do not match")),
+    );
+    return;
+  }
+
+  try {
+    final userCredential =
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email.text.trim(),
+      password: password.text.trim(),
+    );
+
+    print("User Created: ${userCredential.user!.uid}");
+
+    Navigator.of(context).pushReplacement(
+      CupertinoPageRoute(builder: (_) => const CalendarScreen()),
+    );
+  } on FirebaseAuthException catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.message ?? "Registration failed")),
+    );
+  }
+}
+
+
+
+
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Register'),
+      ),
+      body: Container(
+         padding: EdgeInsets.all(12),
+       // decoration: BoxDecoration(
+
+        //),
+
+        child: Form(
+          key: formKey,
+          child: Column(
+        
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          
+            children: [
+              Gap(20),
+              Text('Sign In Your Account'),
+              Gap(16),
+              TextFormField(
+                controller: email,
+                validator: (value){
+                  if(value == null || value.isEmpty){
+                    return 'Required. Please Enter your Email';
+                  }
+                  if(!EmailValidator.validate(value)){
+                    return 'Required. Please Enter a Valid Email Address';
+                    
+                  }
+                  return null;
+                },
+                decoration: InputDecoration(
+                  label: Text('Email Address'),
+                  border: OutlineInputBorder()
+                ),
+              ),
+              Gap(12),
+              TextFormField(
+                controller: password,
+                obscureText: showPassword,
+                validator: (value){
+                   if(value == null || value.isEmpty){
+                    return 'Required. Please Enter your Password';
+                  }
+                  if(value.length <= 5) {
+                     return 'Password should be more than 5 characters';
+
+                  }
+                  return null;
+                },
+                // maxLength: 8,
+                decoration: InputDecoration(
+                  label: Text('Password'),
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(onPressed: toggleShowPassword,
+                   icon: Icon( showPassword ? Icons.visibility : Icons.visibility_off))
+          
+                ),
+              ),
+              Gap(12),
+              TextFormField(
+                controller: confirmPass,
+                obscureText: showPassword,
+                validator: (value){
+                   if(value == null || value.isEmpty){
+                    return 'Required. Please Enter your Password';
+                  }
+                  if(value.length <= 5) {
+                     return 'Password should be more than 5 characters';
+
+                  }
+                  return null;
+                },
+                // maxLength: 8,
+                decoration: InputDecoration(
+                  label: Text('Confirm Password'),
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(onPressed: toggleShowPassword,
+                   icon: Icon( showPassword ? Icons.visibility : Icons.visibility_off))
+          
+                ),
+              ),
+              ElevatedButton(onPressed: register, child: const Text('Register'))
+            ],
+          ),
+        ),
+      )
+    );
+  }
+}

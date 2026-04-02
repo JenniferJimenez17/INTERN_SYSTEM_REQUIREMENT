@@ -1,0 +1,261 @@
+import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int selectedYear = DateTime.now().year; // ✅ fixed: removed @override
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home Page')),
+      body: Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 👇 YEAR DROPDOWN
+            SizedBox(
+              width: 200,
+              child: DropdownMenu<int>(
+                initialSelection: selectedYear,
+                onSelected: (value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedYear = value;
+                    });
+                  }
+                },
+                label: const Text('Select Year'),
+                dropdownMenuEntries: List.generate(
+                  DateTime.now().year - 2020 + 1, // auto count
+                  (index) {
+                    final year = 2020 + index;
+                    return DropdownMenuEntry<int>(
+                      value: year,
+                      label: year.toString(),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(child: MyDataGrid(year: selectedYear)), // pass year
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Step 1: Create a simple data model
+class RowData {
+  RowData(this.ia, this.january, this.february, this.march, this.april,
+      this.may, this.june, this.july, this.august, this.september, this.october,
+      this.november, this.december);
+
+  final String ia;
+  final String january;
+  final String february;
+  final String march;
+  final String april;
+  final String may;
+  final String june;
+  final String july;
+  final String august;
+  final String september;
+  final String october;
+  final String november;
+  final String december;
+}
+
+// Step 2: Create the DataGridSource
+class RowDataSource extends DataGridSource {
+  RowDataSource(List<RowData> rows) {
+    dataGridRows = rows
+        .map<DataGridRow>((row) => DataGridRow(cells: [
+              DataGridCell(columnName: 'IA', value: row.ia),
+              DataGridCell(columnName: 'JanSat', value: row.january),
+              DataGridCell(columnName: 'JanSun', value: row.january),
+              DataGridCell(columnName: 'FebSat', value: row.february),
+              DataGridCell(columnName: 'FebSun', value: row.february),
+              DataGridCell(columnName: 'MarchSat', value: row.march),
+              DataGridCell(columnName: 'MarchSun', value: row.march),
+              DataGridCell(columnName: 'AprilSat', value: row.april),
+              DataGridCell(columnName: 'AprilSun', value: row.april),
+              DataGridCell(columnName: 'MaySat', value: row.may),
+              DataGridCell(columnName: 'MaySun', value: row.may),
+              DataGridCell(columnName: 'JuneSat', value: row.june),
+              DataGridCell(columnName: 'JuneSun', value: row.june),
+              DataGridCell(columnName: 'JulySat', value: row.july),
+              DataGridCell(columnName: 'JulySun', value: row.july),
+              DataGridCell(columnName: 'AugustSat', value: row.august),
+              DataGridCell(columnName: 'AugustSun', value: row.august),
+              DataGridCell(columnName: 'SeptemberSat', value: row.september),
+              DataGridCell(columnName: 'SeptemberSun', value: row.september),
+              DataGridCell(columnName: 'OctoberSat', value: row.october),
+              DataGridCell(columnName: 'OctoberSun', value: row.october),
+              DataGridCell(columnName: 'NovemberSat', value: row.november),
+              DataGridCell(columnName: 'NovemberSun', value: row.november),
+              DataGridCell(columnName: 'DecemberSat', value: row.december),
+              DataGridCell(columnName: 'DecemberSun', value: row.december),
+            ]))
+        .toList();
+  }
+
+  List<DataGridRow> dataGridRows = [];
+
+  @override
+  List<DataGridRow> get rows => dataGridRows;
+
+  @override
+  DataGridRowAdapter buildRow(DataGridRow row) {
+    return DataGridRowAdapter(
+      cells: row.getCells().map<Widget>((cell) {
+        return Container(
+          padding: const EdgeInsets.all(8),
+          alignment: Alignment.center,
+          child: Text(cell.value.toString()),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// Step 3: Build the DataGrid Widget
+class MyDataGrid extends StatefulWidget {
+  final int year;
+  const MyDataGrid({super.key, required this.year});
+
+  @override
+  State<MyDataGrid> createState() => _MyDataGridState();
+}
+
+// ✅ generateWeeks function (only one)
+List<String> generateWeeks(int year, int month) {
+  final lastDay = DateTime(year, month + 1, 0).day;
+  List<String> weeks = [];
+  for (int start = 1; start <= lastDay; start += 7) {
+    int end = start + 6;
+    if (end > lastDay) end = lastDay;
+    weeks.add('$start-$end');
+  }
+  return weeks;
+}
+
+// ✅ generateRows function
+List<RowData> generateRows(int year) {
+  List<RowData> rows = [];
+
+  final janWeeks = generateWeeks(year, 1);
+  final febWeeks = generateWeeks(year, 2);
+
+  final maxRows = [janWeeks.length, febWeeks.length].reduce((a, b) => a > b ? a : b);
+
+  for (int i = 0; i < maxRows; i++) {
+    rows.add(RowData(
+      'IA Row ${i + 1}',
+      i < janWeeks.length ? janWeeks[i] : '',
+      i < febWeeks.length ? febWeeks[i] : '',
+      '', '', '', '', '', '', '', '', '', '',
+    ));
+  }
+
+  return rows;
+}
+
+class _MyDataGridState extends State<MyDataGrid> {
+  late RowDataSource rowDataSource;
+
+  @override
+  void initState() {
+    super.initState();
+    rowDataSource = RowDataSource(generateRows(widget.year));
+  }
+
+  @override
+  void didUpdateWidget(covariant MyDataGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.year != widget.year) {
+      setState(() {
+        rowDataSource = RowDataSource(generateRows(widget.year));
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final months = [
+      'Jan', 'Feb', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    return SfDataGrid(
+      source: rowDataSource,
+      stackedHeaderRows: [
+        StackedHeaderRow(
+          cells: months
+              .map(
+                (month) => StackedHeaderCell(
+                  columnNames: ['${month}Sat', '${month}Sun'],
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: Text(
+                      month,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        )
+      ],
+      gridLinesVisibility: GridLinesVisibility.both,
+      headerGridLinesVisibility: GridLinesVisibility.both,
+      columns: [
+        GridColumn(
+          columnName: 'IA',
+          label: const Center(
+            child: Text(
+              'IA',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        // Generate all 12 months × 2 columns (Sat + Sun)
+        ...months.expand((month) => [
+              GridColumn(
+                columnName: '${month}Sat',
+                width: 80,
+                label: Center(
+                  child: Text(
+                    generateWeeks(widget.year, months.indexOf(month) + 1).join('\n'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              GridColumn(
+                columnName: '${month}Sun',
+                width: 80,
+                label: Center(
+                  child: Text(
+                    generateWeeks(widget.year, months.indexOf(month) + 1).join('\n'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ]),
+      ],
+    );
+  }
+}
+

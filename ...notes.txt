@@ -1,0 +1,7 @@
+appt.subject = controller.text.trim();
+
+   //para mag save yung current time sa database 1
+
+
+   771 - update
+   1731

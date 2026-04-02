@@ -1,0 +1,196 @@
+
+
+//taga handle ng delete and edited yung dedelete niya lahat tangina goodluck sa implimenting ng database dito
+//icoconnect sa database pag editing di gumagana
+// Future<void> removedaPattern(Appointment appt) async {
+
+//   final int? value = int.tryParse(appt.subject);
+//   if (value == null) return;
+
+//   final Map<int, Color> patternOffsets = {
+//     0: Colors.blue,
+//     8: Colors.blue,
+//     23: Colors.yellow,
+//     54: Colors.green,
+//     89: Colors.red,
+//   };
+
+//   for (final entry in patternOffsets.entries) {
+
+//     // Reconstruct possible base date
+//     final possibleBase =
+//         appt.startTime.subtract(Duration(days: entry.key));
+
+//     bool patternMatch = true;
+
+//     // Check if full pattern exists
+//     for (final offset in patternOffsets.keys) {
+//       final checkDate =
+//           possibleBase.add(Duration(days: offset));
+
+//       final exists = _appointments.any((a) =>
+//           a.startTime.year == checkDate.year &&
+//           a.startTime.month == checkDate.month &&
+//           a.startTime.day == checkDate.day &&
+//           a.subject == appt.subject);
+
+//       if (!exists) {
+//         patternMatch = false;
+//         break;
+//       }
+//     }
+
+//     if (patternMatch) {
+
+//       // 🔥 REMOVE FULL PATTERN
+//       for (final offset in patternOffsets.entries) {
+
+//         final date =
+//             possibleBase.add(Duration(days: offset.key));
+
+//         // Remove from Firestore + local list
+//         _appointments.removeWhere((a) {
+//           bool match =
+//               a.startTime.year == date.year &&
+//               a.startTime.month == date.month &&
+//               a.startTime.day == date.day &&
+//               a.subject == appt.subject;
+
+//           if (match && a.id != null) {
+//             FirebaseFirestore.instance
+//                 .collection('users')
+//                 .doc(selectedGroup)
+//                 .collection('appointments')
+//                 .doc(a.id as String)
+//                 .delete();
+//           }
+
+//           return match;
+//         });
+
+//         // 🔥 Subtract totals from Firestore
+//         await updateFirestoreTotal(
+//           groupId: selectedGroup!,
+//           month: date.month,
+//           row: getRowIndex(date),
+//           color: offset.value,
+//           value: -value,
+//         );
+
+//         // 🔥 Subtract from monthlyValues
+//         final month = date.month;
+
+//         if (monthlyValues.containsKey(month) &&
+//             monthlyValues[month]!.containsKey(date)) {
+
+//           monthlyValues[month]![date]!
+//               .update(offset.value, (existing) => existing - value);
+
+//           if (monthlyValues[month]![date]![offset.value] == 0) {
+//             monthlyValues[month]!.remove(offset.value);
+//           }
+
+//           if (monthlyValues[month]![date]!.isEmpty) {
+//             monthlyValues[month]!.remove(date);
+//           }
+//         }
+
+//         updateMonthTotals(month);
+//       }
+
+//       break; // stop loop once matched
+//     }
+//   }
+//   setState(() {});
+// }
+
+
+
+
+// Future<void> updatePattern(Appointment appt, String newValue) async {
+
+//   final int? oldValue = int.tryParse(appt.subject);
+//   final int? newVal = int.tryParse(newValue);
+
+//   if (oldValue == null || newVal == null) return;
+
+//   final diff = newVal - oldValue;
+
+//   final Map<int, Color> patternOffsets = {
+//     0: Colors.blue,
+//     8: Colors.blue,
+//     23: Colors.yellow,
+//     54: Colors.green,
+//     89: Colors.red,
+//   };
+
+//   for (final entry in patternOffsets.entries) {
+
+//     final possibleBase =
+//         appt.startTime.subtract(Duration(days: entry.key));
+
+//     bool patternMatch = true;
+
+//     for (final offset in patternOffsets.keys) {
+
+//       final checkDate =
+//           possibleBase.add(Duration(days: offset));
+
+//       final exists = _appointments.any((a) =>
+//           a.startTime.year == checkDate.year &&
+//           a.startTime.month == checkDate.month &&
+//           a.startTime.day == checkDate.day &&
+//           a.subject == appt.subject);
+
+//       if (!exists) {
+//         patternMatch = false;
+//         break;
+//       }
+//     }
+
+//     if (patternMatch) {
+
+//       for (final offset in patternOffsets.entries) {
+
+//         final date =
+//             possibleBase.add(Duration(days: offset.key));
+
+//         for (final a in _appointments) {
+
+//           if (a.startTime.year == date.year &&
+//               a.startTime.month == date.month &&
+//               a.startTime.day == date.day &&
+//               a.subject == appt.subject) {
+
+//             /// update firestore
+//             ///----- will update here -----
+//             await FirebaseFirestore.instance
+//                 .collection('users')
+//                 .doc(selectedGroup)
+//                 .collection('appointments')
+//                 .doc(a.id as String)
+//                 .update({
+//               'subject': newValue,
+//             });
+
+//             /// update local
+//             a.subject = newValue;
+//           }
+//         }
+
+//         /// update totals difference
+//         await updateFirestoreTotal(
+//           groupId: selectedGroup!,
+//           month: date.month,
+//           row: getRowIndex(date),
+//           color: offset.value,
+//           value: diff,
+//         );
+//       }
+
+//       break;
+//     }
+//   }
+
+//   setState(() {});
+// }
