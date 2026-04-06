@@ -35,7 +35,7 @@ int getRowIndex(DateTime date) {
   final dayIndex = date.day + weekdayOffset - 1;
   return dayIndex ~/ 7;
 }
-
+TextEditingController iaController = TextEditingController();
 
 Future<String> saveAppointmentToFirestore({
   required String groupId,
@@ -145,6 +145,24 @@ Future<void> loadAppointmentsFromFirestore(String groupId) async {
   });
 }
 
+
+Future<void> addAnIA(String iaName) async{
+ try {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(iaName)
+        .set({
+          'groupName': iaName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+    print('IA added successfully');
+  } catch (e) {
+    print('Error adding IA: $e');
+  }
+}
+
+
 void updateMonthTotals(int month) {
   monthlyRowTotals[month] =
       List.generate(6, (_) => <Color, int>{});
@@ -216,6 +234,8 @@ void updateMonthTotals(int month) {
   return generatedAppointments;
 }
 
+
+
   @override
   void initState() {
     super.initState();
@@ -275,10 +295,9 @@ Widget buildSideCells(List<Map<Color, int>> totals) {
     List<InlineSpan> spans = [];
 
     
-   
-
    void addValue(Color color) {
   if (rowData.containsKey(color)) {
+
     if (spans.isNotEmpty) {
       spans.add(const TextSpan(
         text: "/",
@@ -289,16 +308,32 @@ Widget buildSideCells(List<Map<Color, int>> totals) {
       ));
     }
 
+    final int val = rowData[color]!;
+
+    String label = "";
+
+    if (color == Colors.blue || color == Colors.lightBlueAccent) {
+      label = " LS";
+    } else if (color == Colors.yellow) {
+      label = " LP";
+    } else if (color == Colors.green) {
+      label = " AUMV";
+    } else if (color == Colors.red) {
+      label = " ACMR";
+    }
+
     spans.add(TextSpan(
-      text: rowData[color].toString(),
+      text: "$val$label", // 🔥 HERE
       style: TextStyle(
-        color: color, // 🔥 text becomes same as result color
+        color: color,
         fontWeight: FontWeight.bold,
         fontSize: 16,
       ),
     ));
   }
 }
+
+  
 
 addValue(Colors.blue);
 addValue(Colors.lightBlueAccent);
@@ -385,10 +420,6 @@ for (final appt in newAppointments) {
 
   appt.id = docId; // 🔥 IMPORTANT
 }
-
-
-
-
 }
 
     @override
@@ -620,46 +651,135 @@ Expanded(
  
                  ),
 
-               Gap(20),  
+                 
+
+  Gap(20),  
+
+
 
                              
      Expanded(
+
         child: SingleChildScrollView(
+          
           child: Column(
+       
           children: [ 
 
-    Align(
-      alignment: Alignment.centerRight,
-      child: DropdownButton<String>(
+      Align(
+  alignment: Alignment.centerRight,
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+
+   ElevatedButton.icon(
+  onPressed: () async {
+    final TextEditingController dialogController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add An IA"),
+        content: TextField(
+          controller: dialogController,
+          decoration: const InputDecoration(
+            hintText: "Enter IA name",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton.icon(
+            onPressed: () async {
+              final iaName = dialogController.text.trim().toUpperCase();
+
+              if (iaName.isEmpty) return;
+
+              try {
+                final query = await FirebaseFirestore.instance
+                    .collection('users')
+                    .where('name', isEqualTo: iaName)
+                    .get();
+
+                if (query.docs.isNotEmpty) {
+                  print('IA "$iaName" already exist');
+                  return;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(iaName)
+                    .set({
+                  'name': iaName,
+                });
+
+                Navigator.pop(context);
+
+              } catch (e) {
+                print("Error adding IA: $e");
+              }
+            },
+            icon: const Icon(Icons.add),
+            label: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  },
+
+  icon: const Icon(Icons.add), // 🔥 PLUS ICON
+  label: const Text('ADD AN IA'),
+
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue, // 🔥 button color
+    foregroundColor: Colors.white, // 🔥 text + icon color
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12), // 🔥 rounded edges
+    ),
+    elevation: 5, // 🔥 shadow
+  ),
+),
+
+      const SizedBox(width: 10),
+
+      DropdownButton<String>(
         value: selectedGroup,
         hint: const Text(
-      "Select Group",
-      style: TextStyle(color: Colors.black),
+          "Select Group",
+          style: TextStyle(color: Colors.black),
         ),
         underline: const SizedBox(),
         items: groups.map((String value) {
-      return DropdownMenuItem<String>(
-        value: value,
-        child: Text(
-          value,
-          style: const TextStyle(color: Colors.black),
-        ),
-      );
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.black),
+            ),
+          );
         }).toList(),
-        //pinalitan yung onChanged para ma retrive yung sa firebase
         onChanged: (String? newValue) async {
-  if (newValue == null) return;
+          if (newValue == null) return;
 
-  setState(() {
-    selectedGroup = newValue;
-  });
+          setState(() {
+            selectedGroup = newValue;
+          });
 
-  await loadAppointmentsFromFirestore(newValue);
-   await loadTotalsFromFirestore(newValue);
-  
-},
+          await loadAppointmentsFromFirestore(newValue);
+          await loadTotalsFromFirestore(newValue);
+        },
       ),
-    ),
+
+    ],
+  ),
+),
+
+
+    
       Gap(9),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1686,9 +1806,6 @@ Color getColorFromKey(String key) {
 }
 
 
-
-// taga handle ng delete and edited yung dedelete niya lahat 
-// icoconnect sa database pag editing di gumagana
 Future<void> removedaPattern(Appointment appt) async {
   final String? patternId = appt.notes;
   final int? value = int.tryParse(appt.subject);
@@ -1799,74 +1916,48 @@ Future<void> removedaPattern(Appointment appt) async {
 
         // 🔥 Subtract from monthlyValues
         final month = date.month;
+        final dateMap = monthlyValues[month]?[date];
 
         if (monthlyValues.containsKey(month) &&
             monthlyValues[month]!.containsKey(date)) {
 
-          monthlyValues[month]![date]!
-              .update(offset.value, (existing) => existing - value);
+        // final dateMap = monthlyValues[month]?[date];
 
-          if (monthlyValues[month]![date]![offset.value] == 0) {
-            monthlyValues[month]!.remove(offset.value);
-          }
+       final monthMap = monthlyValues[month];
+if (monthMap == null) continue;
 
-          if (monthlyValues[month]![date]!.isEmpty) {
-            monthlyValues[month]!.remove(date);
-          }
-        }
+final dateMap = monthMap[date];
+if (dateMap == null) continue;
+
+/// subtract value safely
+if (dateMap.containsKey(offset.value)) {
+  dateMap[offset.value] = dateMap[offset.value]! - value;
+
+  /// remove color if zero or below
+  if (dateMap[offset.value]! <= 0) {
+    dateMap.remove(offset.value);
+  }
+}
+
+/// remove date if empty
+if (dateMap.isEmpty) {
+  monthMap.remove(date);
+}
+
+/// remove month if empty
+if (monthMap.isEmpty) {
+  monthlyValues.remove(month);
+}
+
         await loadTotalsFromFirestore(selectedGroup!);
         updateMonthTotals(month);
       }
-
+      }
       break; // stop loop once matched
     }
   }
   setState(() {});
 }
-
-
-
-//heto yung bago
-// Future<void> removedaPattern(Appointment appt) async {
-
-//   final String? patternId = appt.notes;
-
-
-//   if (patternId == null) return;
-
-//   final snapshot = await FirebaseFirestore.instance
-//       .collection('users')
-//       .doc(selectedGroup)
-//       .collection('appointments')
-//       .where('patternId', isEqualTo: patternId)
-//       .get();
-
-//   for (var doc in snapshot.docs) {
-
-//     final data = doc.data();
-
-//     final DateTime date = (data['date'] as Timestamp).toDate();
-//     final int value = int.parse(data['subject']);
-//     final Color color = Color(data['color']);
-
-//     /// 🔥 subtract totals
-//     await updateFirestoreTotal(
-//       groupId: selectedGroup!,
-//       month: date.month,
-//       row: getRowIndex(date),
-//       color: color,
-//       value: -value,
-//     );
-
-//     /// delete appointment
-//     await doc.reference.delete();
-//   }
-//    /// 🔥 reload totals
-//   await loadTotalsFromFirestore(selectedGroup!);
-
-//   setState(() {});
-// }
-
 
 
 Future<void> updatePattern(Appointment appt, String newValue) async {
@@ -1991,61 +2082,7 @@ Future<void> updatePattern(Appointment appt, String newValue) async {
 
   }
 
-
-
-
-
-//heto yung updated te, updated code
-//hindi niya ma update yung total pero old code na update niya so minerge 
-// Future<void> updatePattern(Appointment appt, String newValue) async {
-
-//   final String? patternId = appt.notes;
-//   if (patternId == null) return;
-
-//   final int? oldValue = int.tryParse(appt.subject);
-//   final int? newVal = int.tryParse(newValue);
-
-//   if (oldValue == null || newVal == null) return;
-
-//   final int diff = newVal - oldValue;
-
-//   final snapshot = await FirebaseFirestore.instance
-//       .collection('users')
-//       .doc(selectedGroup)
-//       .collection('appointments')
-//       .where('patternId', isEqualTo: patternId)
-//       .get();
-
-//   for (var doc in snapshot.docs) {
-
-//     final data = doc.data();
-//     final DateTime date = (data['date'] as Timestamp).toDate();
-//     final Color color = Color(data['color']);
-
-//     /// 🔥 update appointment value
-//     await doc.reference.update({
-//       'subject': newValue,
-//     });
-
-//     /// 🔥 update totals difference
-//     await updateFirestoreTotal(
-//       groupId: selectedGroup!,
-//       month: date.month,
-//       row: getRowIndex(date),
-//       color: color,
-//       value: diff,
-//     );
-//   }
-
-//  /// 🔥 reload totals
-//   await loadTotalsFromFirestore(selectedGroup!);
-//   setState(() {});
-// }
-
-
-//   }
-
-
+  
 //Class mo for Column Hectar
 class HectarCard extends StatelessWidget {
   final String date;
