@@ -37,6 +37,10 @@ int getRowIndex(DateTime date) {
 }
 TextEditingController iaController = TextEditingController();
 
+DateTime currentMiniDate = DateTime(2026, 1);
+final CalendarController _miniCalendarController = CalendarController();
+
+
 Future<String> saveAppointmentToFirestore({
   required String groupId,
   required DateTime date,
@@ -203,7 +207,10 @@ void updateMonthTotals(int month) {
   8: Colors.lightBlueAccent,
   23: Colors.yellow,
   54: Colors.green,
-  89: Colors.red,
+  90: Colors.red,
+  192: Colors.brown,
+  304: Colors.purple
+
   };
 
   for (final entry in patternOffsets.entries) {
@@ -295,16 +302,12 @@ Widget buildSideCells(List<Map<Color, int>> totals) {
     List<InlineSpan> spans = [];
 
     
-   void addValue(Color color) {
+  void addValue(Color color) {
   if (rowData.containsKey(color)) {
 
     if (spans.isNotEmpty) {
       spans.add(const TextSpan(
-        text: "/",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
+        text: "\n", // 🔥 changed from "/" to newline
       ));
     }
 
@@ -321,18 +324,24 @@ Widget buildSideCells(List<Map<Color, int>> totals) {
     } else if (color == Colors.red) {
       label = " ACMR";
     }
+    else if (color == Colors.brown) {
+      label = " TI";
+    }
+    else if (color == Colors.purple) {
+      label = " AH";
+    }
+
 
     spans.add(TextSpan(
-      text: "$val$label", // 🔥 HERE
+      text: "$val$label",
       style: TextStyle(
         color: color,
         fontWeight: FontWeight.bold,
-        fontSize: 16,
+        fontSize: 13,
       ),
     ));
   }
 }
-
   
 
 addValue(Colors.blue);
@@ -340,6 +349,8 @@ addValue(Colors.lightBlueAccent);
 addValue(Colors.yellow);
 addValue(Colors.green);
 addValue(Colors.red);
+addValue(Colors.brown);
+addValue(Colors.purple);
 
 return RichText(
   text: TextSpan(children: spans),
@@ -380,7 +391,10 @@ final String patternId = DateTime.now().millisecondsSinceEpoch.toString();
     8: Colors.lightBlueAccent,
     23: Colors.yellow,
     54: Colors.green,
-    89: Colors.red,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
+
   };
 
   setState(() {
@@ -574,20 +588,93 @@ Expanded(
           children: [
               Gap(30),
             /// Small Month Preview
-            SizedBox(
-              height: 220,
-              child: SfCalendar(
-                view: CalendarView.month,
-                initialDisplayDate: DateTime(2026, 1, 1),
-                showNavigationArrow: false,
-                allowViewNavigation: false,
-                viewNavigationMode: ViewNavigationMode.none,
-                monthViewSettings: const MonthViewSettings(
-                  appointmentDisplayMode:
-                      MonthAppointmentDisplayMode.none,
-                ),
-              ),
+         
+         Container(
+  height: 260,
+  padding: const EdgeInsets.all(12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: const [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 6,
+        offset: Offset(0, 2),
+      )
+    ],
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      
+      /// 🔹 HEADER WITH ARROWS
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          /// ◀ PREV
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () {
+              setState(() {
+                currentMiniDate = DateTime(
+                  currentMiniDate.year,
+                  currentMiniDate.month - 1,
+                );
+
+                _miniCalendarController.displayDate = currentMiniDate;
+              });
+            },
+          ),
+
+          /// 🗓 MONTH TEXT
+          Text(
+            DateFormat('MMMM yyyy').format(currentMiniDate).toUpperCase(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
+          ),
+
+          /// ▶ NEXT
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () {
+              setState(() {
+                currentMiniDate = DateTime(
+                  currentMiniDate.year,
+                  currentMiniDate.month + 1,
+                );
+
+                _miniCalendarController.displayDate = currentMiniDate;
+              });
+            },
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 6),
+
+      /// 🔹 CALENDAR
+      Expanded(
+        child: SfCalendar(
+          controller: _miniCalendarController, // 🔥 important
+          view: CalendarView.month,
+          initialDisplayDate: currentMiniDate,
+          showNavigationArrow: false,
+          allowViewNavigation: false,
+          viewNavigationMode: ViewNavigationMode.none,
+          headerHeight: 0,
+          todayHighlightColor: Colors.blue,
+          monthViewSettings: const MonthViewSettings(
+            appointmentDisplayMode: MonthAppointmentDisplayMode.none,
+            showTrailingAndLeadingDates: true,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
 
             const SizedBox(height: 20),
 
@@ -746,33 +833,85 @@ Expanded(
 
       const SizedBox(width: 10),
 
-      DropdownButton<String>(
-        value: selectedGroup,
-        hint: const Text(
-          "Select Group",
-          style: TextStyle(color: Colors.black),
+      // DropdownButton<String>(
+      //   value: selectedGroup,
+      //   hint: const Text(
+      //     "Select Group",
+      //     style: TextStyle(color: Colors.black),
+      //   ),
+      //   underline: const SizedBox(),
+      //   items: groups.map((String value) {
+      //     return DropdownMenuItem<String>(
+      //       value: value,
+      //       child: Text(
+      //         value,
+      //         style: const TextStyle(color: Colors.black),
+      //       ),
+      //     );
+      //   }).toList(),
+      //   onChanged: (String? newValue) async {
+      //     if (newValue == null) return;
+
+      //     setState(() {
+      //       selectedGroup = newValue;
+      //     });
+
+      //     await loadAppointmentsFromFirestore(newValue);
+      //     await loadTotalsFromFirestore(newValue);
+      //   },
+      // ),
+
+      Container(
+  padding: const EdgeInsets.symmetric(horizontal: 12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(10),
+    boxShadow: const [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 4,
+        offset: Offset(0, 2),
+      )
+    ],
+  ),
+  child: DropdownButtonHideUnderline(
+    child: DropdownButton<String>(
+      value: selectedGroup,
+      hint: const Text(
+        "Select Group",
+        style: TextStyle(
+          color: Colors.grey,
+          fontWeight: FontWeight.w500,
         ),
-        underline: const SizedBox(),
-        items: groups.map((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.black),
-            ),
-          );
-        }).toList(),
-        onChanged: (String? newValue) async {
-          if (newValue == null) return;
-
-          setState(() {
-            selectedGroup = newValue;
-          });
-
-          await loadAppointmentsFromFirestore(newValue);
-          await loadTotalsFromFirestore(newValue);
-        },
       ),
+      icon: const Icon(Icons.keyboard_arrow_down),
+      isExpanded: false, // 🔥 full width
+      items: groups.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        );
+      }).toList(),
+      onChanged: (String? newValue) async {
+        if (newValue == null) return;
+
+        setState(() {
+          selectedGroup = newValue;
+        });
+
+        await loadAppointmentsFromFirestore(newValue);
+        await loadTotalsFromFirestore(newValue);
+      },
+    ),
+  ),
+),
+
 
     ],
   ),
@@ -1108,47 +1247,44 @@ return GestureDetector(
                             monthlyRowTotals[2] ?? List.generate(6, (_) => <Color, int>{}),
                                   ),
                                  Gap(8),
-                             Expanded(
-                             child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                              dataSource: _dataSource,
-                                todayHighlightColor: Colors.blue,
-                                showNavigationArrow: false,
-                                allowViewNavigation: false,
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 2, 1),
-                                
-                                monthViewSettings: const MonthViewSettings(
-                                  appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
-                              
-                                ),
-                                appointmentBuilder: (context, details) {
-                                final Appointment appt = details.appointments.first;
-                                  
-                                  
-                                return Container(
-                                  width: details.bounds.width,
-                                  height: details.bounds.height,
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  decoration: BoxDecoration(
-                                    color: appt.color,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  alignment: Alignment.centerLeft,
+                            Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 2, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
                                   child: Text(
-                                    appt.subject,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              },
-        onTap: (CalendarTapDetails details) async {
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
 
   /// 🚫 BLOCK IF NO IA SELECTED
   if (selectedGroup == null) {
@@ -1162,60 +1298,232 @@ return GestureDetector(
     return;
   }
 
-  /// 🔵 1️⃣ IF USER TAPS EXISTING APPOINTMENT
-  if (details.targetElement == CalendarElement.appointment) {
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
 
-    final Appointment appt = details.appointments!.first;
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
 
-    TextEditingController controller =
-        TextEditingController(text: appt.subject);
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
 
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Edit Appointment"),
+        title: const Text("Edit Hectar"),
         content: TextField(
           controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
         ),
         actions: [
+            ElevatedButton(
+  onPressed: () async {
 
-          /// ❌ DELETE
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
           TextButton(
-            onPressed: () async {
-              //parahas dapat sa buong calendar
-              await removedaPattern(appt);
-setState(() {});
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Colors.red),
-            ),
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
           ),
 
-          /// 💾 SAVE EDIT
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                setState(() {
-                  appt.subject = controller.text.trim();
-                  _dataSource = NoteDataSource(_appointments);
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
+        
         ],
       ),
     );
-  }
+  },
 
-  /// 🟢 2️⃣ IF USER TAPS EMPTY CELL (ADD NEW)
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
   else if (details.targetElement == CalendarElement.calendarCell) {
 
-  final DateTime selectedDate = details.date ?? DateTime.now();  
-  final  TextEditingController controller = TextEditingController();
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
 
     await showDialog(
       context: context,
@@ -1223,10 +1531,12 @@ setState(() {});
         title: const Text("Add Note"),
         content: TextField(controller: controller),
         actions: [
+
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
+
           ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) {
@@ -1236,14 +1546,14 @@ setState(() {});
             },
             child: const Text("Save"),
           ),
-        ]
-        )
-                                        );
-                                      }
-                                    },    
-                              ),
-                                                  ),
-                           ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                            ]
                          ),
                               
@@ -1261,112 +1571,284 @@ setState(() {});
                            monthlyRowTotals[3] ?? List.generate(6, (_) => <Color, int>{}),
                             ),
                                   Gap(8),
-                            Expanded(
-                             child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                dataSource: _dataSource,
-                                todayHighlightColor: Colors.blue,
-                                  showNavigationArrow: false,
-                                allowViewNavigation: false,
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 3, 1),
-                                monthViewSettings: const MonthViewSettings(
-                                  appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
-                                ),
-                                
-                              appointmentBuilder: (context, details) {
-                              final Appointment appt = details.appointments.first;
-                                  
-                              return Container(
-                                width: details.bounds.width,
-                                height: details.bounds.height,
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                decoration: BoxDecoration(
-                                  color: appt.color,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                          
+                           Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 3, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
                                 alignment: Alignment.centerLeft,
-                                child: Text(
-                                  appt.subject,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                                                  },
-                                  
-                                onTap: (CalendarTapDetails details) async {
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
 
-                                    /// 🚫 BLOCK IF NO IA SELECTED
-                        if (selectedGroup == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Please select an IA first"),
-                              backgroundColor: Colors.red,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          return;
-                        }
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
 
-  /// 🔵 1️⃣ IF USER TAPS EXISTING APPOINTMENT
-  if (details.targetElement == CalendarElement.appointment) {
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
 
-    final Appointment appt = details.appointments!.first;
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
 
-    TextEditingController controller =
-        TextEditingController(text: appt.subject);
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
 
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Edit Appointment"),
+        title: const Text("Edit Hectar"),
         content: TextField(
           controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
         ),
         actions: [
+            ElevatedButton(
+  onPressed: () async {
 
-          /// ❌ DELETE
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
           TextButton(
-            onPressed: () async{
-              await removedaPattern(appt);
-            setState(() {});
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Colors.red),
-            ),
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
           ),
 
-          /// 💾 SAVE EDIT
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                setState(() {
-                  appt.subject = controller.text.trim();
-                  _dataSource = NoteDataSource(_appointments);
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
+        
         ],
       ),
     );
-  }
+  },
 
-  /// 🟢 2️⃣ IF USER TAPS EMPTY CELL (ADD NEW)
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
   else if (details.targetElement == CalendarElement.calendarCell) {
 
-    final DateTime selectedDate = details.date!;
- final TextEditingController controller = TextEditingController();
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
 
     await showDialog(
       context: context,
@@ -1374,10 +1856,12 @@ setState(() {});
         title: const Text("Add Note"),
         content: TextField(controller: controller),
         actions: [
+
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
+
           ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) {
@@ -1387,15 +1871,16 @@ setState(() {});
             },
             child: const Text("Save"),
           ),
-        ]
-      )
-                                );
-                              }
-                                              },
-                                
-                              ),
-                                                  ),
-                           ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
+
+
                            ]
                          ),
                               
@@ -1413,24 +1898,313 @@ setState(() {});
                      monthlyRowTotals[4] ?? List.generate(6, (_) => <Color, int>{}),
                     ),
                             Gap(8),
-                           Expanded(
-                           child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 4, 1),
-                                showNavigationArrow: false,
+                         Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 4, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                         ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                          ]
                        ),
                               
@@ -1443,24 +2217,313 @@ setState(() {});
                            monthlyRowTotals[5] ?? List.generate(6, (_) => <Color, int>{}),
 ),
                                 Gap(8),
-                               Expanded(
-                              child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 5, 1),
-                                showNavigationArrow: false,
+                             Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 5, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                            ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                             ]
                           ),
                               
@@ -1478,24 +2541,313 @@ setState(() {});
                           monthlyRowTotals[6] ?? List.generate(6, (_) => <Color, int>{}),
 ),
                                Gap(8),
-                               Expanded(
-                              child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 6, 1),
-                                showNavigationArrow: false,
+                                Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 6, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                            ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                             ]
                           ),
                               
@@ -1513,24 +2865,313 @@ setState(() {});
                            monthlyRowTotals[7] ?? List.generate(6, (_) => <Color, int>{}),
 ),
                               Gap(8),
-                               Expanded(
-                               child: SizedBox(
-                                height: 600,
-                                child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
+                                Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 7, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
                                 ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 7, 1),
-                                showNavigationArrow: false,
-                                                         ),
-                                                  ),
-                             ),
+                ),
                              ]
                            ),
                               
@@ -1549,24 +3190,313 @@ setState(() {});
                         monthlyRowTotals[8] ?? List.generate(6, (_) => <Color, int>{}),
 ),
                            Gap(8),
-                           Expanded(
-                            child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 8, 1),
-                                showNavigationArrow: false,
-                              ),
-                                                  ),
+                            Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 8, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                         ]
                       ),
                         const SizedBox(height: 40),
@@ -1583,32 +3513,318 @@ setState(() {});
                         monthlyRowTotals[9] ?? List.generate(6, (_) => <Color, int>{}),
 ),
                               Gap(8),
-                             Expanded(
-                             child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
+                              Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 9, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
                                 ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 9, 1),
-                                showNavigationArrow: false,
-                              ),),
-                           ),
+                ),
                            ]
                          ),
                               
                           const SizedBox(height: 40),
-                              
-                          //  const Text(
-                          // "October",
-                          // style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
-                          // const SizedBox(height: 10),
+
                               
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1618,21 +3834,312 @@ setState(() {});
                              ),
                                 Gap(8),
                               Expanded(
-                              child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 10, 1),
-                                showNavigationArrow: false,
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 10, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                            ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                             ]
                           ),
                               
@@ -1652,23 +4159,312 @@ setState(() {});
                           ),
                             Gap(8),
                            Expanded(
-                           child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 11, 1),
-                                showNavigationArrow: false,
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 11, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                         ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                          ]
                        ),
                               
@@ -1686,24 +4482,313 @@ setState(() {});
                            buildSideCells(
                           monthlyRowTotals[12] ?? List.generate(6, (_) => <Color, int>{}),),
                               Gap(8),
-                             Expanded(
-                             child: SizedBox(
-                              height: 600,
-                              child: SfCalendar(
-                                view: CalendarView.month,
-                                // headerHeight: 40,
-                                // viewHeaderHeight: 40,
-                                todayHighlightColor: Colors.blue,
-                                allowViewNavigation: false,
-                                monthViewSettings: const MonthViewSettings(
-                                  showAgenda: false,
-                                ),
-                                viewNavigationMode: ViewNavigationMode.none,
-                                initialDisplayDate: DateTime(2026, 12, 1),
-                                showNavigationArrow: false,
+                              Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 12, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
                               ),
-                                                  ),
-                           ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
                            ]
                          ),
                               
@@ -1755,6 +4840,8 @@ String getColorKey(Color color) {
   if (color == Colors.yellow) return "yellow";
   if (color == Colors.green) return "green";
   if (color == Colors.red) return "red";
+   if (color == Colors.brown) return "brown";
+    if (color == Colors.purple) return "purple";
   return "unknown";
 }
 
@@ -1800,6 +4887,10 @@ Color getColorFromKey(String key) {
       return Colors.green;
     case "red":
       return Colors.red;
+    case "brown":
+      return Colors.brown;
+    case "purple":
+      return Colors.purple;
     default:
       return Colors.black;
   }
@@ -1849,7 +4940,11 @@ Future<void> removedaPattern(Appointment appt) async {
     8: Colors.lightBlueAccent,
     23: Colors.yellow,
     54: Colors.green,
-    89: Colors.red,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
+
+
   };
 
   for (final entry in patternOffsets.entries) {
@@ -2006,7 +5101,9 @@ Future<void> updatePattern(Appointment appt, String newValue) async {
     8: Colors.lightBlueAccent,
     23: Colors.yellow,
     54: Colors.green,
-    89: Colors.red,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
   };
 
   for (final entry in patternOffsets.entries) {
