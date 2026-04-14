@@ -970,7 +970,7 @@ onTap: (CalendarTapDetails details) async {
   if (selectedGroup == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Please select an IA first"),
+        content: Text("Please seleit ct an IA first"),
         backgroundColor: Colors.red,
         duration: Duration(seconds: 2),
       ),
