@@ -1,0 +1,2002 @@
+  import 'package:cloud_firestore/cloud_firestore.dart'; 
+  import 'package:flutter/material.dart';
+  import 'package:gap/gap.dart';
+  import 'package:syncfusion_flutter_calendar/calendar.dart';
+  import 'package:intl/intl.dart';
+  import 'package:firebase_core/firebase_core.dart';
+
+
+  class ShorterFile extends StatefulWidget {
+    const ShorterFile({super.key});
+
+    @override
+    State<ShorterFile> createState() => _ShorterFileState();
+  }
+
+  class NoteDataSource extends CalendarDataSource {
+    NoteDataSource(List<Appointment> source) {
+      appointments = source;
+    }
+  }
+
+  class _ShorterFileState extends State<ShorterFile> {
+
+  // final List<Appointment> _appointments = [];
+  DateTime? selectedCalendarDate;
+  late NoteDataSource _dataSource;
+  final List<Appointment> _appointments = [];
+
+Map<int, Map<DateTime, Map<Color, int>>> monthlyValues = {};
+Map<int, List<Map<Color, int>>> monthlyRowTotals = {};
+
+int getRowIndex(DateTime date) {
+  final firstDay = DateTime(date.year, date.month, 1);
+  final weekdayOffset = firstDay.weekday % 7;
+  final dayIndex = date.day + weekdayOffset - 1;
+  return dayIndex ~/ 7;
+}
+//1.
+DateTime normalize(DateTime d) {
+  return DateTime(d.year, d.month, d.day);
+}
+
+TextEditingController iaController = TextEditingController();
+
+DateTime currentMiniDate = DateTime(2026, 1);
+final CalendarController _miniCalendarController = CalendarController();
+
+
+Future<String> saveAppointmentToFirestore({
+  required String groupId,
+  required DateTime date,
+  required String subject,
+  required Color color,
+  required String patternId,
+}) async {
+
+  final now = DateTime.now();
+
+  final DateTime dateWithTime = DateTime(
+    date.year,
+    date.month,
+    date.day,
+    now.hour,
+    now.minute,
+    now.second,
+  );
+
+  final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('appointments')
+      .add({
+    'date': dateWithTime,
+    'subject': subject,
+    'color': color.value,
+    'patternId': patternId,   // 🔥 important
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+
+  return doc.id;
+}
+
+Future<void> loadAppointmentsFromFirestore(String groupId) async {
+ 
+  final snapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('appointments')
+      .get();
+
+  _appointments.clear();
+  monthlyValues.clear();
+  monthlyRowTotals.clear();
+
+  for (var doc in snapshot.docs) {
+    final data = doc.data();
+    
+  
+    //para mag save yung current time sa database 1
+    final Timestamp? createdTs = data['createdAt'];
+
+    String timeOnly = "";
+
+    if (createdTs != null) {
+      final DateTime createdAt = createdTs.toDate();
+      timeOnly = DateFormat("MMMM dd, yyyy  •  hh:mm a").format(createdAt);
+    }
+    
+    final now = DateTime.now();
+    final DateTime date = (data['date'] as Timestamp).toDate();
+
+    final String subject = data['subject'];
+    final Color color = Color(data['color']);
+    final String patternId = data['patternId'];
+
+  final appt = Appointment(
+  id: doc.id,
+  startTime: date,
+  endTime: date.add(const Duration(hours: 1)),
+  subject: subject,
+  color: color,
+  // notes: timeOnly,
+  notes: patternId,
+  
+);
+
+    _appointments.add(appt);
+
+    /// rebuild monthlyValues for totals
+    final int? value = int.tryParse(subject);
+    if (value != null) {
+      final month = date.month;
+      final normalizedDate = normalize(date);
+
+
+      monthlyValues.putIfAbsent(month, () => {});
+
+      monthlyValues[month]!.putIfAbsent(normalizedDate, () => {});
+
+      monthlyValues[month]![normalizedDate]!.update(
+        color,
+        (existing) => existing + value,
+        ifAbsent: () => value,
+      );
+    }
+  }
+
+  /// rebuild totals
+  for (int m = 1; m <= 12; m++) {
+    updateMonthTotals(m);
+  }
+
+  setState(() {
+    _dataSource = NoteDataSource(_appointments);
+  });
+}
+
+DateTime getStartOfWeek(DateTime date) {
+  final DateTime onlyDate = DateTime(date.year, date.month, date.day);
+
+  final int daysToSubtract =
+      (onlyDate.weekday - DateTime.sunday) % 7;
+
+  return onlyDate.subtract(Duration(days: daysToSubtract));
+}
+
+Future<void> addAnIA(String iaName) async{
+ try {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(iaName)
+        .set({
+          'groupName': iaName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+    print('IA added successfully');
+  } catch (e) {
+    print('Error adding IA: $e');
+  }
+}
+
+
+void updateMonthTotals(int month) {
+  monthlyRowTotals[month] =
+      List.generate(6, (_) => <Color, int>{});
+
+  if (!monthlyValues.containsKey(month)) return;
+
+  for (var entry in monthlyValues[month]!.entries) {
+    int row = getRowIndex(entry.key);
+
+    entry.value.forEach((color, value) {
+      monthlyRowTotals[month]![row].update(
+        color,
+        (existing) => existing + value,
+        ifAbsent: () => value,
+      );
+    });
+  }
+}
+
+
+
+
+  Future<List<Appointment>> generatePatternAppointments({
+  required DateTime selectedDate,
+  required String text,
+   required String patternId,
+}) async {
+
+  final List<Appointment> generatedAppointments = [];
+
+  final int? value = int.tryParse(text);
+  if (value == null || value <= 0) return [];
+
+  // Example patternOffsets (adjust if yours is different)
+  //not working dito
+  final Map<int, Color> patternOffsets = {
+    0: Colors.blue,
+  8: Colors.lightBlueAccent,
+  23: Colors.yellow,
+  54: Colors.green,
+  90: Colors.red,
+  192: Colors.brown,
+  304: Colors.purple
+
+  };
+
+  for (final entry in patternOffsets.entries) {
+    final date = selectedDate.add(Duration(days: entry.key));
+    final color = entry.value;
+    final month = date.month;
+
+    final appt = Appointment(
+      startTime: date,
+      endTime: date.add(const Duration(hours: 1)),
+      subject: text,
+      color: color,
+       notes: patternId,
+    );
+
+    generatedAppointments.add(appt);
+
+    // 🔥 Update Firestore totals (increment)
+    await updateFirestoreTotal(
+      groupId: selectedGroup!,
+      month: month,
+      row: getRowIndex(date), // make sure this exists
+      color: color,
+      value: value,
+    );
+
+
+    await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: value,
+);
+
+  }
+
+
+
+
+
+  return generatedAppointments;
+}
+
+
+
+  @override
+  void initState() {
+    super.initState();
+      _dataSource = NoteDataSource(_appointments);
+    
+  }
+
+//andito list ng IAs
+String? selectedGroup;
+
+final List<String> groups = [
+  "SANV-DUMAC",
+  "NARAGSAK DMD",
+  "GREAT DOMANPOT",
+  "ASENSO CAR NORTE",
+  "UNITED PIASURNOR",
+  "PIAZ VILLASIS",
+  "CARAMUTAN VILLASIS",
+  "DOMANPOT SOLID",
+  "ABANTE BACTAD EAST",
+  "SULONG TIMACO",
+];
+
+//taga handle ng database mo to
+
+
+
+//taga generate ng horizontal column sa tabi ng calendar
+Widget buildSideCells(List<Map<Color, int>> totals) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 60),
+    child: Container(
+      width: 72,
+      height: 550,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey, width: 2),
+      ),
+      child: Column(
+        children: List.generate(6, (index) {
+          return Expanded(
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: index != 5
+                      ? const BorderSide(color: Colors.grey)
+                      : BorderSide.none,
+                ),
+              ),
+              child: Builder(
+  builder: (_) {
+    final rowData = totals[index];
+
+    if (rowData.isEmpty) return const SizedBox();
+
+    List<InlineSpan> spans = [];
+
+    
+  void addValue(Color color) {
+  if (rowData.containsKey(color)) {
+
+    if (spans.isNotEmpty) {
+      spans.add(const TextSpan(
+        text: "\n", // 🔥 changed from "/" to newline
+      ));
+    }
+
+    final int val = rowData[color]!;
+
+    String label = "";
+
+    if (color == Colors.blue || color == Colors.lightBlueAccent) {
+      label = " LS";
+    } else if (color == Colors.yellow) {
+      label = " LP";
+    } else if (color == Colors.green) {
+      label = " AUMV";
+    } else if (color == Colors.red) {
+      label = " ACMR";
+    }
+    else if (color == Colors.brown) {
+      label = " TI";
+    }
+    else if (color == Colors.purple) {
+      label = " AH";
+    }
+
+
+    spans.add(TextSpan(
+      text: "$val$label",
+      style: TextStyle(
+        color: color,
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+      ),
+    ));
+  }
+}
+  
+
+addValue(Colors.blue);
+addValue(Colors.lightBlueAccent);
+addValue(Colors.yellow);
+addValue(Colors.green);
+addValue(Colors.red);
+addValue(Colors.brown);
+addValue(Colors.purple);
+
+return RichText(
+  text: TextSpan(children: spans),
+);
+  },
+),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+
+Future<void> handleSave(DateTime selectedDate, String text) async { 
+final String patternId = DateTime.now().millisecondsSinceEpoch.toString();
+
+  if (selectedGroup == null) {
+    // show error if no group selected
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please select a group first")),
+    );
+    return;
+  }
+
+  final newAppointments =  await generatePatternAppointments(
+    selectedDate: selectedDate,
+    text: text,
+     patternId: patternId,
+  );
+
+  final int? value = int.tryParse(text);
+  if (value == null || value <= 0) return;
+
+  final Map<int, Color> patternOffsets = {
+    0: Colors.blue,
+    8: Colors.lightBlueAccent,
+    23: Colors.yellow,
+    54: Colors.green,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
+
+  };
+
+  setState(() {
+    _appointments.addAll(newAppointments);
+    _dataSource = NoteDataSource(_appointments);
+
+    for (final entry in patternOffsets.entries) {
+
+      final date = selectedDate.add(Duration(days: entry.key));
+      final color = entry.value;
+      final month = date.month;
+      final normalizedDate = normalize(date);
+
+
+      monthlyValues.putIfAbsent(month, () => {});
+      monthlyValues[month]!.putIfAbsent(normalizedDate, () => {});
+
+      monthlyValues[month]![normalizedDate]!.update(
+        color,
+        (existing) => existing + value,
+        ifAbsent: () => value,
+      );
+    }
+
+    for (final entry in patternOffsets.entries) {
+      final date = selectedDate.add(Duration(days: entry.key));
+      updateMonthTotals(date.month);
+    }
+  });
+
+  // 🔵 SAVE TO FIRESTORE
+final batch = FirebaseFirestore.instance.batch();
+
+for (final appt in newAppointments) {
+  final docRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(selectedGroup!)
+      .collection('appointments')
+      .doc();
+
+  batch.set(docRef, {
+    'date': appt.startTime,
+    'subject': appt.subject,
+    'color': appt.color.value,
+    'patternId': patternId,
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+}
+
+await batch.commit();
+
+
+}
+
+    @override
+    Widget build(BuildContext context) {
+
+      final DateTime now = DateTime.now();
+    
+      double? E600;
+      return Scaffold(
+          drawer: Drawer(
+    child: ListView(
+      padding: EdgeInsets.zero,
+      children: [
+       DrawerHeader(
+  decoration: const BoxDecoration(
+    color: Color(0xFF2E9B57)
+  ),
+  child: Row(
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+    Image.asset(
+      'assets/images/asris_logo.png',
+      width: 60,
+      height: 60,
+    ),
+    const SizedBox(width: 5),
+    // maliit lang na gap
+    const Text(
+      'NIA AgriCalendar\nADMIN PORTAL',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+   
+  ],
+),
+),
+        ListTile(
+          leading: const Icon(Icons.home),
+          title: const Text('Home'),
+          onTap: () {},
+        ),
+        ListTile(
+          leading: const Icon(Icons.person_add_alt_sharp),
+          title: const Text('Add An Associations'),
+          onTap: () {},
+        ),
+        ListTile(
+          leading: const Icon(Icons.analytics),
+          title: const Text('Reports'),
+          onTap: () {},
+        ),
+        ListTile(
+          leading: const Icon(Icons.settings),
+          title: const Text('Settings'),
+          onTap: () {},
+        ),
+      ],
+    ),
+  ),
+
+
+
+
+
+
+
+        body: Column(
+    children: [
+
+      /// 🔷 TOP NAVIGATION BAR (60 height)
+      Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: const BoxDecoration(
+          color: Color.fromARGB(255, 255, 254, 254),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+              Row(
+  children: [
+    Builder(
+      builder: (context) => IconButton(
+        icon: const Icon(Icons.menu, color: Colors.black),
+        onPressed: () {
+          Scaffold.of(context).openDrawer();
+        },
+      ),
+    ),
+    const SizedBox(width: 10),
+    const Text(
+      "Calendar Dashboard",
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ],
+),
+            /// Left side
+           
+            /// Right side buttons
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    "Home",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    "Reports",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    "Settings",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+
+        
+Expanded(
+  child: Row(
+    children: [
+
+      /// 🔹 LEFT PANEL (Mini calendar + events)
+  
+      Container(
+        width: 240,
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+
+          color: Color(0xFFF5F5F5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(2, 0),
+            )
+          ],
+        ),
+
+
+        
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              Gap(30),
+            /// Small Month Preview
+         
+         Container(
+  height: 260,
+  padding: const EdgeInsets.all(12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: const [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 6,
+        offset: Offset(0, 2),
+      )
+    ],
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      
+      /// 🔹 HEADER WITH ARROWS
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          /// ◀ PREV
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () {
+              setState(() {
+                currentMiniDate = DateTime(
+                  currentMiniDate.year,
+                  currentMiniDate.month - 1,
+                );
+
+                _miniCalendarController.displayDate = currentMiniDate;
+              });
+            },
+          ),
+
+          /// 🗓 MONTH TEXT
+          Text(
+            DateFormat('MMMM yyyy').format(currentMiniDate).toUpperCase(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+
+          /// ▶ NEXT
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () {
+              setState(() {
+                currentMiniDate = DateTime(
+                  currentMiniDate.year,
+                  currentMiniDate.month + 1,
+                );
+
+                _miniCalendarController.displayDate = currentMiniDate;
+              });
+            },
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 6),
+
+      /// 🔹 CALENDAR
+      Expanded(
+        child: SfCalendar(
+          controller: _miniCalendarController, // 🔥 important
+          view: CalendarView.month,
+          initialDisplayDate: currentMiniDate,
+          showNavigationArrow: false,
+          allowViewNavigation: false,
+          viewNavigationMode: ViewNavigationMode.none,
+          headerHeight: 0,
+          todayHighlightColor: Colors.blue,
+          monthViewSettings: const MonthViewSettings(
+            appointmentDisplayMode: MonthAppointmentDisplayMode.none,
+            showTrailingAndLeadingDates: true,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              "Today's Event",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+
+
+        Container(
+        width: 20,
+        color: Colors.grey.shade200,
+
+        
+      ),
+
+         Expanded(
+          child: SingleChildScrollView( 
+
+            child: Padding(
+              padding: const EdgeInsets.only(
+                // left: 260,
+                right: 15,
+                top: 25,
+              ),
+       
+            //here
+            
+
+              child:  Row(
+                
+                  
+                crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                  Gap(20), 
+                 Padding(
+                    padding: const EdgeInsets.only(top: 60),
+
+ 
+                 ),
+
+                 
+
+  Gap(20),  
+
+
+
+                             
+     Expanded(
+
+        child: SingleChildScrollView(
+          
+          child: Column(
+       
+          children: [ 
+
+      Align(
+  alignment: Alignment.centerRight,
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+
+   ElevatedButton.icon(
+  onPressed: () async {
+    final TextEditingController dialogController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add An IA"),
+        content: TextField(
+          controller: dialogController,
+          decoration: const InputDecoration(
+            hintText: "Enter IA name",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton.icon(
+            onPressed: () async {
+              final iaName = dialogController.text.trim().toUpperCase();
+
+              if (iaName.isEmpty) return;
+
+              try {
+                final query = await FirebaseFirestore.instance
+                    .collection('users')
+                    .where('name', isEqualTo: iaName)
+                    .get();
+
+                if (query.docs.isNotEmpty) {
+                  print('IA "$iaName" already exist');
+                  return;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(iaName)
+                    .set({
+                  'name': iaName,
+                });
+
+                Navigator.pop(context);
+
+              } catch (e) {
+                print("Error adding IA: $e");
+              }
+            },
+            icon: const Icon(Icons.add),
+            label: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  },
+
+  icon: const Icon(Icons.add), // 🔥 PLUS ICON
+  label: const Text('ADD AN IA'),
+
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue, // 🔥 button color
+    foregroundColor: Colors.white, // 🔥 text + icon color
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12), // 🔥 rounded edges
+    ),
+    elevation: 5, // 🔥 shadow
+  ),
+),
+
+      const SizedBox(width: 10),
+
+  
+      Container(
+  padding: const EdgeInsets.symmetric(horizontal: 12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(10),
+    boxShadow: const [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 4,
+        offset: Offset(0, 2),
+      )
+    ],
+  ),
+  child: DropdownButtonHideUnderline(
+    child: DropdownButton<String>(
+      value: selectedGroup,
+      hint: const Text(
+        "Select Group",
+        style: TextStyle(
+          color: Colors.grey,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down),
+      isExpanded: false, // 🔥 full width
+      items: groups.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        );
+      }).toList(),
+      onChanged: (String? newValue) async {
+        if (newValue == null) return;
+
+        setState(() {
+          selectedGroup = newValue;
+        });
+
+        await loadAppointmentsFromFirestore(newValue);
+        await loadTotalsFromFirestore(newValue);
+      },
+    ),
+  ),
+),
+
+
+    ],
+  ),
+),
+
+
+    
+      Gap(9),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [ 
+                  buildSideCells(
+               monthlyRowTotals[1] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                  Gap(8),
+                  Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    child: SfCalendar(
+                        view: CalendarView.month,
+                        dataSource: _dataSource,
+                        todayHighlightColor: Colors.blue,
+                        showNavigationArrow: false,
+                        allowViewNavigation: false,
+                        viewNavigationMode: ViewNavigationMode.none,
+                        initialDisplayDate: DateTime(2026, 1, 1),
+                        monthViewSettings: const MonthViewSettings(
+                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
+                                                  
+                        appointmentBuilder: (context, details) {
+                        final Appointment appt = details.appointments.first;
+                        return Align(
+                          child: Container(
+                          
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                                color: appt.color,
+                                borderRadius: BorderRadius.circular(4),),
+                                alignment: Alignment.centerLeft,
+                                  child: Text(
+                                        appt.subject,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                        );
+                                        },
+                                      
+onTap: (CalendarTapDetails details) async {
+
+  /// 🚫 BLOCK IF NO IA SELECTED
+  if (selectedGroup == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an IA first"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+
+/// 🔵 IF CELL HAS DATA
+if (details.appointments != null && details.appointments!.isNotEmpty) {
+
+  List<Appointment> appts = details.appointments!.cast<Appointment>();
+
+  await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+
+          return Dialog(
+            child: SizedBox(
+              width: 700,
+              height: 500,
+              child: Stack(
+                children: [
+
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        const Text(
+                          "Hectars for IAs",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        Expanded(
+                          child: Wrap(
+                            spacing: 40,
+                            runSpacing: 20,
+                            children: appts.map((appt) {
+
+                              final String formattedDate =
+                                  DateFormat("MMMM dd, yyyy • hh:mm a")
+                                      .format(appt.startTime);
+
+return GestureDetector(
+  onTap: () async {
+
+    final TextEditingController controller =
+        TextEditingController(text: appt.subject?.toString() ?? "");
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Edit Hectar"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: "Value",
+          ),
+        ),
+        actions: [
+            ElevatedButton(
+  onPressed: () async {
+
+    final newValue = controller.text.trim();
+    if (newValue.isEmpty) return;
+
+    /// 🔥 UPDATE FULL PATTERN
+    await updatePattern(appt, newValue);
+
+    Navigator.pop(context);
+
+    /// 🔄 reload database
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts = _appointments.where((a) =>
+          a.startTime.year == details.date!.year &&
+          a.startTime.month == details.date!.month &&
+          a.startTime.day == details.date!.day
+      ).toList();
+    });
+
+  },
+  child: const Text("Update"),
+),
+
+          TextButton(
+  style: TextButton.styleFrom(
+    foregroundColor: Colors.red,
+  ),
+  onPressed: () async {
+
+    await removedaPattern(appt);
+
+    Navigator.pop(context);
+
+    await loadAppointmentsFromFirestore(selectedGroup!);
+    await loadTotalsFromFirestore(selectedGroup!);
+
+    setStateDialog(() {
+      appts.removeWhere((a) => a.id == appt.id);
+    });
+
+  },
+  child: const Text("Delete"),
+),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+        
+        ],
+      ),
+    );
+  },
+
+  child: HectarCard(
+    date: formattedDate,
+    value: appt.subject?.toString() ?? "",
+  ),
+);
+
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  /// ➕ ADD BUTTON
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+
+                        final TextEditingController controller =
+                            TextEditingController();
+
+                        final DateTime selectedDate = details.date!;
+
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Add Note"),
+                            content: TextField(controller: controller),
+                            actions: [
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Cancel"),
+                              ),
+
+                              ElevatedButton(
+                                onPressed: () async {
+
+                                  if (controller.text.isNotEmpty) {
+
+                                    await handleSave(
+                                      selectedDate,
+                                      controller.text.trim(),
+                                    );
+
+                                    /// 🔥 reload appointments
+                                    await loadAppointmentsFromFirestore(selectedGroup!);
+
+                                    /// 🔥 refresh dialog UI
+                                    setStateDialog(() {
+                                      appts = _appointments
+                                          .where((a) =>
+                                              a.startTime.year == selectedDate.year &&
+                                              a.startTime.month == selectedDate.month &&
+                                              a.startTime.day == selectedDate.day)
+                                          .toList();
+                                    });
+                                  }
+
+                                  Navigator.pop(context);
+                                },
+                                child: const Text("Save"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// 🟢 IF CELL IS EMPTY
+  else if (details.targetElement == CalendarElement.calendarCell) {
+
+  final DateTime selectedDate = details.date ?? DateTime.now();
+  final TextEditingController controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Note"),
+        content: TextField(controller: controller),
+        actions: [
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                handleSave(selectedDate, controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+                                        ),
+                                ),
+                ),
+                ]
+              ),
+                          
+                         SizedBox(height: 30),
+
+
+                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                            buildSideCells(
+                            monthlyRowTotals[2] ?? List.generate(6, (_) => <Color, int>{}),
+                                  ),
+                                 Gap(8),
+                            Expanded(
+                  child: SizedBox(
+                    height: 600,
+                   
+                                ),
+                ),
+                           ]
+                         ),
+                              
+                 const SizedBox(height: 30),
+                      /// 🔹 Small March Calendar (Below February)
+                      //   const Text(
+                      //     "March",
+                      // style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
+                      const SizedBox(height: 10),
+                              
+                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [ 
+                         buildSideCells(
+                           monthlyRowTotals[3] ?? List.generate(6, (_) => <Color, int>{}),
+                            ),
+                                  Gap(8),
+                          
+                           Expanded(
+                  child: SizedBox(
+                    height: 600,
+                   
+                                ),
+                ),
+
+
+                           ]
+                         ),
+                              
+                                              const SizedBox(height: 40),
+                              
+                        // const Text(
+                        //   "April",
+                        //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
+                        // const SizedBox(height: 10),
+                              
+                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                      buildSideCells(
+                     monthlyRowTotals[4] ?? List.generate(6, (_) => <Color, int>{}),
+                    ),
+                            Gap(8),
+                         Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    
+                                ),
+                ),
+                         ]
+                       ),
+                              
+                            const SizedBox(height: 40),
+                              
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                           buildSideCells(
+                           monthlyRowTotals[5] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                                Gap(8),
+                             Expanded(
+                  child: SizedBox(
+                    height: 600,
+                     
+                       
+                                ),
+                ),
+                            ]
+                          ),
+                              
+                     const SizedBox(height: 40),
+                              
+                  // const Text(
+                  //         "June",
+                  //         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
+                  //         const SizedBox(height: 10),
+                              
+                        Row  (
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                           buildSideCells(
+                          monthlyRowTotals[6] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                               Gap(8),
+                                Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    
+                        
+                                ),
+                ),
+                            ]
+                          ),
+                              
+                            const SizedBox(height: 40),
+                              
+                          //   const Text(
+                          // "July",
+                          // style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
+                          //    const SizedBox(height: 10),
+                              
+                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
+                          buildSideCells(
+                           monthlyRowTotals[7] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                              Gap(8),
+                                Expanded(
+                  child: SizedBox(
+                    height: 600,
+                    
+                                ),
+                ),
+                             ]
+                           ),
+                              
+                             const SizedBox(height: 40),
+                              
+                          // const Text(
+                          // "August",
+                          // style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          //  ),
+                          //  const SizedBox(height: 10),
+                              
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                       buildSideCells(
+                        monthlyRowTotals[8] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                           Gap(8),
+                            Expanded(
+                  child: SizedBox(
+                    height: 600,
+                
+                                ),
+                ),
+                        ]
+                      ),
+                        const SizedBox(height: 40),
+                              
+                          //  const Text(
+                          // "September",
+                          // style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold), ),
+                          // const SizedBox(height: 10),
+                              
+                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                          buildSideCells(
+                        monthlyRowTotals[9] ?? List.generate(6, (_) => <Color, int>{}),
+),
+                              Gap(8),
+                              Expanded(
+                  child: SizedBox(
+                    height: 600,
+                                ),
+                ),
+                           ]
+                         ),
+                              
+                          const SizedBox(height: 40),
+
+                              
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [ 
+                            buildSideCells(
+                           monthlyRowTotals[10] ?? List.generate(6, (_) => <Color, int>{}),
+                             ),
+                                Gap(8),
+                              Expanded(
+                  child: SizedBox(
+                    height: 600,
+          
+                                ),
+                ),
+                            ]
+                          ),
+                              
+                          const SizedBox(height: 40),
+                              
+                        // const Text(
+                        //   "November",
+                        //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        //   ),
+                        // const SizedBox(height: 10),
+                              
+                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                        buildSideCells(
+                        monthlyRowTotals[11] ?? List.generate(6, (_) => <Color, int>{}),
+                          ),
+                            Gap(8),
+                           Expanded(
+                  child: SizedBox(
+                    height: 600,
+
+                                ),
+                ),
+                         ]
+                       ),
+                              
+                       const SizedBox(height: 40),
+                              
+                      // const Text(
+                      //     "December",
+                      //     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      //                         ),
+                      //                         const SizedBox(height: 10),
+                              
+                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                           buildSideCells(
+                          monthlyRowTotals[12] ?? List.generate(6, (_) => <Color, int>{}),),
+                              Gap(8),
+                              Expanded(
+                  child: SizedBox(
+                    height: 600,
+                   
+                                ),
+                ),
+                           ]
+                         ),
+                              
+                          const SizedBox(height: 40), 
+                            ]
+                         ),
+                        ),
+                      ) 
+                  ],
+              
+                ),
+            )
+              ),
+            ),
+    ]
+          )
+        )
+    ]
+        )
+      );
+    }
+
+
+
+//para masave yung total sa database: 
+Future<void> updateFirestoreTotal({
+  required String groupId,
+  required int month,
+  required int row,
+  required Color color,
+  required int value,
+}) async {
+
+  final colorKey = getColorKey(color);
+
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('monthlyTotals')
+      .doc(month.toString())
+      .set({
+    'row_${row}_$colorKey': FieldValue.increment(value),
+  }, SetOptions(merge: true));
+}
+
+
+String getColorKey(Color color) {
+  final c = color.toARGB32();
+
+  if (c == Colors.blue.toARGB32()) return "blue";
+  if (c == Colors.lightBlueAccent.toARGB32()) return "lightblue";
+  if (c == Colors.yellow.toARGB32()) return "yellow";
+  if (c == Colors.green.toARGB32()) return "green";
+  if (c == Colors.red.toARGB32()) return "red";
+  if (c == Colors.brown.toARGB32()) return "brown";
+  if (c == Colors.purple.toARGB32()) return "purple";
+
+  return "unknown";
+}
+
+//Loads totals from database
+Future<void> loadTotalsFromFirestore(String groupId) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('monthlyTotals')
+      .get();
+
+  monthlyRowTotals.clear();
+
+  for (var doc in snapshot.docs) {
+    final month = int.parse(doc.id);
+    final data = doc.data();
+
+    monthlyRowTotals[month] =
+        List.generate(6, (_) => <Color, int>{});
+
+    data.forEach((key, value) {
+      final parts = key.split('_');
+      final row = int.parse(parts[1]);
+      final color = parts[2];
+
+      monthlyRowTotals[month]![row][getColorFromKey(color)] = value;
+    });
+  }
+
+  setState(() {});
+}
+
+
+Color getColorFromKey(String key) {
+  switch (key) {
+    case "blue":
+      return Colors.blue;
+    case "lightblue":
+      return Colors.lightBlueAccent;
+    case "yellow":
+      return Colors.yellow;
+    case "green":
+      return Colors.green;
+    case "red":
+      return Colors.red;
+    case "brown":
+      return Colors.brown;
+    case "purple":
+      return Colors.purple;
+    default:
+      return Colors.black;
+  }
+}
+
+
+Future<void> removedaPattern(Appointment appt) async {
+  final String? patternId = appt.notes;
+  final int? value = int.tryParse(appt.subject);
+
+  if (patternId == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(selectedGroup)
+      .collection('appointments')
+      .where('patternId', isEqualTo: patternId)
+      .get();
+
+    for (var doc in snapshot.docs) {
+
+    final data = doc.data();
+
+    final DateTime date = (data['date'] as Timestamp).toDate();
+    final int value = int.parse(data['subject']);
+    final Color color = Color(data['color']);
+
+    /// 🔥 subtract totals
+    await updateFirestoreTotal(
+      groupId: selectedGroup!,
+      month: date.month,
+      row: getRowIndex(date),
+      color: color,
+      value: -value,
+    );
+
+    await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: -value,
+);
+
+    /// delete appointment
+    await doc.reference.delete();
+  }
+ 
+
+
+  if (value == null) return;
+
+  final Map<int, Color> patternOffsets = {
+    0: Colors.blue,
+    8: Colors.lightBlueAccent,
+    23: Colors.yellow,
+    54: Colors.green,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
+
+
+  };
+
+  for (final entry in patternOffsets.entries) {
+
+    // Reconstruct possible base date
+    final possibleBase =
+        appt.startTime.subtract(Duration(days: entry.key));
+
+    bool patternMatch = true;
+
+    // Check if full pattern exists
+    for (final offset in patternOffsets.keys) {
+      final checkDate =
+          possibleBase.add(Duration(days: offset));
+
+      final exists = _appointments.any((a) =>
+          a.startTime.year == checkDate.year &&
+          a.startTime.month == checkDate.month &&
+          a.startTime.day == checkDate.day &&
+          a.subject == appt.subject);
+
+      if (!exists) {
+        patternMatch = false;
+        break;
+      }
+    }
+
+    if (patternMatch) {
+
+      // 🔥 REMOVE FULL PATTERN
+      for (final offset in patternOffsets.entries) {
+
+        final date =
+            possibleBase.add(Duration(days: offset.key));
+
+        // Remove from Firestore + local list
+        _appointments.removeWhere((a) {
+          bool match =
+              a.startTime.year == date.year &&
+              a.startTime.month == date.month &&
+              a.startTime.day == date.day &&
+              a.subject == appt.subject;
+
+          if (match && a.id != null) {
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(selectedGroup)
+                .collection('appointments')
+                .doc(a.id as String)
+                .delete();
+          }
+
+          return match;
+        });
+
+        // // 🔥 Subtract totals from Firestore
+        // await updateFirestoreTotal(
+        //   groupId: selectedGroup!,
+        //   month: date.month,
+        //   row: getRowIndex(date),
+        //   color: offset.value,
+        //   value: -value,
+        // );
+
+        // 🔥 Subtract from monthlyValues
+        final month = date.month;
+        final dateMap = monthlyValues[month]?[date];
+
+        if (monthlyValues.containsKey(month) &&
+            monthlyValues[month]!.containsKey(date)) {
+
+        // final dateMap = monthlyValues[month]?[date];
+
+       final monthMap = monthlyValues[month];
+if (monthMap == null) continue;
+
+final dateMap = monthMap[date];
+if (dateMap == null) continue;
+
+/// subtract value safely
+if (dateMap.containsKey(offset.value)) {
+  dateMap[offset.value] = dateMap[offset.value]! - value;
+
+  /// remove color if zero or below
+  if (dateMap[offset.value]! <= 0) {
+    dateMap.remove(offset.value);
+  }
+}
+
+/// remove date if empty
+if (dateMap.isEmpty) {
+  monthMap.remove(date);
+}
+
+/// remove month if empty
+if (monthMap.isEmpty) {
+  monthlyValues.remove(month);
+}
+
+        await loadTotalsFromFirestore(selectedGroup!);
+        updateMonthTotals(month);
+      }
+      }
+      break; // stop loop once matched
+    }
+  }
+  setState(() {});
+}
+
+Future<void> updateWeeklyTotals({
+  required String groupId,
+  required DateTime date,
+  required Color color,
+  required int value,
+}) async {
+
+  final startOfWeek = getStartOfWeek(date);
+  final endOfWeek = startOfWeek.add(const Duration(days: 6));
+
+  final weekId = DateFormat('yyyy-MM-dd').format(startOfWeek);
+  final colorKey = getColorKey(color);
+
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('weeklyTotals')
+      .doc(weekId)
+      .set({
+    'startDate': startOfWeek,
+    'endDate': endOfWeek,
+    colorKey: FieldValue.increment(value),
+  }, SetOptions(merge: true));
+}
+
+
+
+
+Future<void> updatePattern(Appointment appt, String newValue) async {
+  final String? patternId = appt.notes;
+  if (patternId == null) return;
+
+  final int? oldValue = int.tryParse(appt.subject);
+  final int? newVal = int.tryParse(newValue);
+
+  if (oldValue == null || newVal == null) return;
+
+  final int diff = newVal - oldValue;
+
+    final snapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(selectedGroup)
+      .collection('appointments')
+      .where('patternId', isEqualTo: patternId)
+      .get();
+
+  for (var doc in snapshot.docs) {
+
+    final data = doc.data();
+    final DateTime date = (data['date'] as Timestamp).toDate();
+    final Color color = Color(data['color']);
+
+    /// 🔥 update appointment value
+    await doc.reference.update({
+      'subject': newValue,
+    });
+
+    /// 🔥 update totals difference
+    await updateFirestoreTotal(
+      groupId: selectedGroup!,
+      month: date.month,
+      row: getRowIndex(date),
+      color: color,
+      value: diff,
+    );
+
+    await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: diff,
+);
+  }
+
+  await loadTotalsFromFirestore(selectedGroup!);
+
+  final Map<int, Color> patternOffsets = {
+    0: Colors.blue,
+    8: Colors.lightBlueAccent,
+    23: Colors.yellow,
+    54: Colors.green,
+    90: Colors.red,
+    192: Colors.brown,
+    304: Colors.purple
+  };
+
+  for (final entry in patternOffsets.entries) {
+
+    final possibleBase =
+        appt.startTime.subtract(Duration(days: entry.key));
+
+    bool patternMatch = true;
+
+    for (final offset in patternOffsets.keys) {
+
+      final checkDate =
+          possibleBase.add(Duration(days: offset));
+
+      final exists = _appointments.any((a) =>
+          a.startTime.year == checkDate.year &&
+          a.startTime.month == checkDate.month &&
+          a.startTime.day == checkDate.day &&
+          a.subject == appt.subject);
+
+      if (!exists) {
+        patternMatch = false;
+        break;
+      }
+    }
+
+    if (patternMatch) {
+
+      for (final offset in patternOffsets.entries) {
+
+        final date =
+            possibleBase.add(Duration(days: offset.key));
+
+        for (final a in _appointments) {
+
+          if (a.startTime.year == date.year &&
+              a.startTime.month == date.month &&
+              a.startTime.day == date.day &&
+              a.subject == appt.subject) {
+
+            /// update firestore
+            ///----- will update here -----
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(selectedGroup)
+                .collection('appointments')
+                .doc(a.id as String)
+                .update({
+              'subject': newValue,
+            });
+
+            /// update local
+            a.subject = newValue;
+          }
+        }
+
+        /// update totals difference
+        // await updateFirestoreTotal(
+        //   groupId: selectedGroup!,
+        //   month: date.month,
+        //   row: getRowIndex(date),
+        //   color: offset.value,
+        //   value: diff,
+        // );
+      }
+
+      break;
+    }
+  }
+
+  setState(() {});
+}
+
+  }
+
+//Class mo for Column Hectar
+class HectarCard extends StatelessWidget {
+  final String date;
+  final String value;
+
+  const HectarCard({
+    super.key,
+    required this.date,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          /// DATE TEXT
+          Text(
+            date,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black87,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          /// VALUE BOX
+          Container(
+            width: 150,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF9FD3E0),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

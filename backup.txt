@@ -1,0 +1,18 @@
+//// ===== AULS (WIDE RICE with 2 columns below) =====
+// sheet.getRangeByIndex(rowStart, col, rowStart, col + 1).merge(); // AULS spans 2 cols
+// sheet.getRangeByIndex(rowStart, col).setText('AULS');
+// sheet.getRangeByIndex(rowStart, col).cellStyle = headerStyle;
+
+// // RICE (wide across 2 columns)
+// sheet.getRangeByIndex(rowStart + 1, col, rowStart + 1, col + 1).merge();
+// sheet.getRangeByIndex(rowStart + 1, col).setText('RICE');
+// sheet.getRangeByIndex(rowStart + 1, col).cellStyle = headerStyle;
+
+// // 2 columns below RICE (example: you can rename if needed)
+// sheet.getRangeByIndex(rowStart + 2, col).setText(' ');
+// sheet.getRangeByIndex(rowStart + 2, col).cellStyle = headerStyle;
+
+// sheet.getRangeByIndex(rowStart + 2, col + 1).setText(' ');
+// sheet.getRangeByIndex(rowStart + 2, col + 1).cellStyle = headerStyle;
+
+// col += 2;

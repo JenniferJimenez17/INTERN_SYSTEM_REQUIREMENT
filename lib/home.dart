@@ -1,4 +1,6 @@
-  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:agno_project/add_associations.dart';
+import 'package:agno_project/reports.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
   import 'package:flutter/material.dart';
   import 'package:gap/gap.dart';
   import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -25,6 +27,9 @@
   DateTime? selectedCalendarDate;
   late NoteDataSource _dataSource;
   final List<Appointment> _appointments = [];
+
+  String? selectedGroup;
+List<String> groups = [];
 
 Map<int, Map<DateTime, Map<Color, int>>> monthlyValues = {};
 Map<int, List<Map<Color, int>>> monthlyRowTotals = {};
@@ -75,6 +80,20 @@ Future<String> saveAppointmentToFirestore({
   return doc.id;
 }
 
+
+Future<void> loadGroupsFromFirestore() async {
+  final snapshot =
+      await FirebaseFirestore.instance.collection('users').get();
+
+  setState(() {
+    groups = snapshot.docs
+        .map((doc) => doc.id) // 🔥 dito importante
+        .toList();
+  });
+}
+
+
+
 Future<void> loadAppointmentsFromFirestore(String groupId) async {
  
   final snapshot = await FirebaseFirestore.instance
@@ -89,9 +108,6 @@ Future<void> loadAppointmentsFromFirestore(String groupId) async {
 
   for (var doc in snapshot.docs) {
     final data = doc.data();
-    
-   
-
 
     //para mag save yung current time sa database 1
     final Timestamp? createdTs = data['createdAt'];
@@ -236,6 +252,14 @@ void updateMonthTotals(int month) {
       color: color,
       value: value,
     );
+
+await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: value,
+);
+
   }
 
   return generatedAppointments;
@@ -247,24 +271,10 @@ void updateMonthTotals(int month) {
   void initState() {
     super.initState();
       _dataSource = NoteDataSource(_appointments);
+        loadGroupsFromFirestore();
     
   }
 
-//andito list ng IAs
-String? selectedGroup;
-
-final List<String> groups = [
-  "SANV-DUMAC",
-  "NARAGSAK DMD",
-  "GREAT DOMANPOT",
-  "ASENSO CAR NORTE",
-  "UNITED PIASURNOR",
-  "PIAZ VILLASIS",
-  "CARAMUTAN VILLASIS",
-  "DOMANPOT SOLID",
-  "ABANTE BACTAD EAST",
-  "SULONG TIMACO",
-];
 
 //taga handle ng database mo to
 
@@ -366,6 +376,45 @@ return RichText(
 }
 
 
+DateTime getStartOfWeek(DateTime date) {
+  final DateTime onlyDate = DateTime(date.year, date.month, date.day);
+
+  final int daysToSubtract =
+      (onlyDate.weekday - DateTime.sunday) % 7;
+
+  return onlyDate.subtract(Duration(days: daysToSubtract));
+}
+
+//weeklyTotals
+Future<void> updateWeeklyTotals({
+  required String groupId,
+  required DateTime date,
+  required Color color,
+  required int value,
+}) async {
+
+  final startOfWeek = getStartOfWeek(date);
+  final endOfWeek = startOfWeek.add(const Duration(days: 6));
+
+  final weekId = DateFormat('yyyy-MM-dd').format(startOfWeek);
+  final colorKey = getColorKey(color);
+
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(groupId)
+      .collection('weeklyTotals')
+      .doc(weekId)
+      .set({
+    'startDate': startOfWeek,
+    'endDate': endOfWeek,
+    colorKey: FieldValue.increment(value),
+  }, SetOptions(merge: true));
+}
+
+
+
+
+
 Future<void> handleSave(DateTime selectedDate, String text) async { 
 final String patternId = DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -444,34 +493,80 @@ for (final appt in newAppointments) {
       double? E600;
       return Scaffold(
           drawer: Drawer(
+              backgroundColor: const Color(0xFF0B3D0B),
     child: ListView(
       padding: EdgeInsets.zero,
       children: [
-        const DrawerHeader(
-          decoration: BoxDecoration(
-            color: Colors.blueGrey ,
-          ),
-          child: Text(
-            'Menu',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
+       DrawerHeader(
+  
+  child: Row(
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+    Image.asset(
+      'assets/images/asris_logo.png',
+      width: 60,
+      height: 60,
+    ),
+    const SizedBox(width: 5),
+    // maliit lang na gap
+    const Text(
+      'NIA AgriCalendar\nADMIN PORTAL',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+   
+  ],
+),
+),
+        ListTile(
+          leading: const Icon(Icons.home, color: Colors.white, ),
+          title: const Text('Home',  style: TextStyle(color: Colors.white)),
+          onTap: () {
+            Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) =>  CalendarScreen(),
+    ),
+  );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.person_add_alt_sharp,  color: Colors.white,),
+          title: const Text('Associations',  style: TextStyle(color: Colors.white)),
+       onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => IrrigationAssociationsPage(),
+    ),
+  );
+},
+        ),
+        
+         ListTile(
+          leading: const Icon(Icons.history_rounded, color: Colors.white,),
+          title: const Text('Activity Logs',  style: TextStyle(color: Colors.white)),
+          onTap: () {
+          },
+        ),
+         ListTile(
+          leading: const Icon(Icons.analytics, color: Colors.white,),
+          title: const Text('Reports',  style: TextStyle(color: Colors.white)),
+          onTap: () {
+             Navigator.push(
+             context,
+            MaterialPageRoute(
+              builder: (context) => Reports(),
             ),
-          ),
+          );
+          },
         ),
         ListTile(
-          leading: const Icon(Icons.home),
-          title: const Text('Home'),
-          onTap: () {},
-        ),
-        ListTile(
-          leading: const Icon(Icons.analytics),
-          title: const Text('Reports'),
-          onTap: () {},
-        ),
-        ListTile(
-          leading: const Icon(Icons.settings),
-          title: const Text('Settings'),
+          leading: const Icon(Icons.settings,  color: Colors.white,),
+          title: const Text('Settings',  style: TextStyle(color: Colors.white)),
           onTap: () {},
         ),
       ],
@@ -482,7 +577,7 @@ for (final appt in newAppointments) {
 
 
 
-
+   backgroundColor: Colors.green.shade900,
 
         body: Column(
     children: [
@@ -492,10 +587,10 @@ for (final appt in newAppointments) {
         height: 60,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: const BoxDecoration(
-          color: Color.fromARGB(255, 255, 254, 254),
+          color: Color(0xFF234F1E),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey,
+              color: Color(0xFF028A0F),
               blurRadius: 4,
               offset: Offset(0, 2),
             ),
@@ -508,7 +603,7 @@ for (final appt in newAppointments) {
   children: [
     Builder(
       builder: (context) => IconButton(
-        icon: const Icon(Icons.menu, color: Colors.black),
+        icon: const Icon(Icons.menu, color: Colors.white),
         onPressed: () {
           Scaffold.of(context).openDrawer();
         },
@@ -518,7 +613,7 @@ for (final appt in newAppointments) {
     const Text(
       "Calendar Dashboard",
       style: TextStyle(
-        color: Colors.black,
+        color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
@@ -528,33 +623,7 @@ for (final appt in newAppointments) {
             /// Left side
            
             /// Right side buttons
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "Home",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "Reports",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "Settings",
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-              ],
-            )
+          
           ],
         ),
       ),
@@ -570,8 +639,9 @@ Expanded(
         width: 240,
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
-
-          color: Color(0xFFF5F5F5),
+//ditoo
+          color: Color(0xFF1B5E20),
+     
           boxShadow: [
             BoxShadow(
               color: Colors.black12,
@@ -682,6 +752,7 @@ Expanded(
               "Today's Event",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
+                color: Colors.white
               ),
             ),
 
@@ -707,7 +778,7 @@ Expanded(
 
         Container(
         width: 20,
-        color: Colors.grey.shade200,
+        color: Color(0xFF234F1E),
 
         
       ),
@@ -759,108 +830,10 @@ Expanded(
     mainAxisSize: MainAxisSize.min,
     children: [
 
-   ElevatedButton.icon(
-  onPressed: () async {
-    final TextEditingController dialogController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Add An IA"),
-        content: TextField(
-          controller: dialogController,
-          decoration: const InputDecoration(
-            hintText: "Enter IA name",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-
-          ElevatedButton.icon(
-            onPressed: () async {
-              final iaName = dialogController.text.trim().toUpperCase();
-
-              if (iaName.isEmpty) return;
-
-              try {
-                final query = await FirebaseFirestore.instance
-                    .collection('users')
-                    .where('name', isEqualTo: iaName)
-                    .get();
-
-                if (query.docs.isNotEmpty) {
-                  print('IA "$iaName" already exist');
-                  return;
-                }
-
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(iaName)
-                    .set({
-                  'name': iaName,
-                });
-
-                Navigator.pop(context);
-
-              } catch (e) {
-                print("Error adding IA: $e");
-              }
-            },
-            icon: const Icon(Icons.add),
-            label: const Text("Save"),
-          ),
-        ],
-      ),
-    );
-  },
-
-  icon: const Icon(Icons.add), // 🔥 PLUS ICON
-  label: const Text('ADD AN IA'),
-
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.blue, // 🔥 button color
-    foregroundColor: Colors.white, // 🔥 text + icon color
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12), // 🔥 rounded edges
-    ),
-    elevation: 5, // 🔥 shadow
-  ),
-),
 
       const SizedBox(width: 10),
 
-      // DropdownButton<String>(
-      //   value: selectedGroup,
-      //   hint: const Text(
-      //     "Select Group",
-      //     style: TextStyle(color: Colors.black),
-      //   ),
-      //   underline: const SizedBox(),
-      //   items: groups.map((String value) {
-      //     return DropdownMenuItem<String>(
-      //       value: value,
-      //       child: Text(
-      //         value,
-      //         style: const TextStyle(color: Colors.black),
-      //       ),
-      //     );
-      //   }).toList(),
-      //   onChanged: (String? newValue) async {
-      //     if (newValue == null) return;
-
-      //     setState(() {
-      //       selectedGroup = newValue;
-      //     });
-
-      //     await loadAppointmentsFromFirestore(newValue);
-      //     await loadTotalsFromFirestore(newValue);
-      //   },
-      // ),
-
+  
       Container(
   padding: const EdgeInsets.symmetric(horizontal: 12),
   decoration: BoxDecoration(
@@ -917,7 +890,7 @@ Expanded(
   ),
 ),
 
-
+//pag nawa;a to
     
       Gap(9),
               Row(
@@ -930,39 +903,139 @@ Expanded(
                   Expanded(
                   child: SizedBox(
                     height: 600,
+
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 1, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 1, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -970,7 +1043,7 @@ onTap: (CalendarTapDetails details) async {
   if (selectedGroup == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Please seleit ct an IA first"),
+        content: Text("Please select an IA first"),
         backgroundColor: Colors.red,
         duration: Duration(seconds: 2),
       ),
@@ -1250,40 +1323,140 @@ return GestureDetector(
                             Expanded(
                   child: SizedBox(
                     height: 600,
+
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 2, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
-                                      
+
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 2, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+                      
 onTap: (CalendarTapDetails details) async {
 
   /// 🚫 BLOCK IF NO IA SELECTED
@@ -1576,38 +1749,139 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 3, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                      
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 3, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -1902,38 +2176,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 4, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 4, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -2221,38 +2595,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 5, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                        
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 5, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -2545,38 +3019,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 6, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 6, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -2869,38 +3443,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 7, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                        
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 7, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -3194,38 +3868,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 8, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                      
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 8, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -3517,38 +4291,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 9, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 9, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -3837,38 +4711,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 10, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 10, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -4162,38 +5136,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 11, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 11, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -4486,38 +5560,138 @@ return GestureDetector(
                   child: SizedBox(
                     height: 600,
                     child: SfCalendar(
-                        view: CalendarView.month,
-                        dataSource: _dataSource,
-                        todayHighlightColor: Colors.blue,
-                        showNavigationArrow: false,
-                        allowViewNavigation: false,
-                        viewNavigationMode: ViewNavigationMode.none,
-                        initialDisplayDate: DateTime(2026, 12, 1),
-                        monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,),
-                                                  
-                        appointmentBuilder: (context, details) {
-                        final Appointment appt = details.appointments.first;
-                        return Align(
-                          child: Container(
-                          
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                                color: appt.color,
-                                borderRadius: BorderRadius.circular(4),),
-                                alignment: Alignment.centerLeft,
-                                  child: Text(
-                                        appt.subject,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                        );
-                                        },
+                       
+  view: CalendarView.month,
+  dataSource: _dataSource,
+
+  todayHighlightColor: Colors.transparent, // 🔥 CHANGED: remove default highlight
+  cellBorderColor: Colors.transparent, 
+  selectionDecoration: BoxDecoration(
+  color: Colors.white.withOpacity(0.2), // 🔥 soft white fill
+  borderRadius: BorderRadius.circular(10), // 👈 match your cell radius
+  border: Border.all(
+    color: Colors.white, // 🔥 white border
+    width: 1.5,
+  ),
+),
+
+  // 🔥 CHANGED: cleaner weekday header
+  viewHeaderStyle: const ViewHeaderStyle(
+    backgroundColor: Colors.transparent,
+    dayTextStyle: TextStyle(
+      color: Colors.white70,
+      fontWeight: FontWeight.w600, // 👈 added
+      fontSize: 13,
+    ),
+  ),
+
+  // 🔥 ADDED: Month title (January 2026)
+  headerStyle: const CalendarHeaderStyle(
+    textStyle: TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 1.2,
+    ),
+    textAlign: TextAlign.center,
+    backgroundColor: Colors.transparent,
+  ),
+
+  // 🔥 UPGRADED: calendar cells
+  monthCellBuilder: (context, details) {
+    final now = DateTime.now();
+
+    final isToday =
+        details.date.day == now.day &&
+        details.date.month == now.month &&
+        details.date.year == now.year;
+
+    final isWeekend =
+        details.date.weekday == DateTime.saturday ||
+        details.date.weekday == DateTime.sunday;
+
+    return Container(
+      margin: const EdgeInsets.all(3), // 🔥 spacing between cells
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04), // 🔥 soft background
+        borderRadius: BorderRadius.circular(10), // 🔥 rounded cells
+        border: Border.all(
+          color: isToday
+              ? Colors.orangeAccent // 🔥 highlight today
+              : Colors.white.withOpacity(0.08),
+          width: isToday ? 1.5 : 0.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(6),
+      alignment: Alignment.topRight, // 🔥 CHANGED alignment
+
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isToday
+              ? Colors.orangeAccent // 🔥 today circle
+              : Colors.transparent,
+        ),
+        child: Text(
+          details.date.day.toString(),
+          style: TextStyle(
+            color: isToday
+                ? Colors.black
+                : isWeekend
+                    ? Colors.redAccent // 🔥 weekend color
+                    : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600, // 🔥 added weight
+          ),
+        ),
+      ),
+    );
+  },
+
+  showNavigationArrow: false,
+  allowViewNavigation: false,
+  viewNavigationMode: ViewNavigationMode.none,
+  initialDisplayDate: DateTime(2026, 12, 1),
+
+  monthViewSettings: const MonthViewSettings(
+    appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+  ),
+
+  // 🔥 UPGRADED: appointments look better
+  appointmentBuilder: (context, details) {
+    final Appointment appt = details.appointments.first;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1), // 🔥 spacing
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+
+      decoration: BoxDecoration(
+        color: appt.color.withOpacity(0.9), // 🔥 softer color
+        borderRadius: BorderRadius.circular(8), // 🔥 smoother corners
+        boxShadow: [
+          BoxShadow( // 🔥 subtle shadow
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+
+      child: Text(
+        appt.subject,
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white, // 🔥 better contrast
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  },
+
+                    
+       
                                       
 onTap: (CalendarTapDetails details) async {
 
@@ -4834,17 +6008,30 @@ Future<void> updateFirestoreTotal({
   }, SetOptions(merge: true));
 }
 
+// String getColorKey(Color color) {
+//   if (color == Colors.blue) return "blue";
+//    if (color == Colors.lightBlueAccent) return "lightblue";
+//   if (color == Colors.yellow) return "yellow";
+//   if (color == Colors.green) return "green";
+//   if (color == Colors.red) return "red";
+//    if (color == Colors.brown) return "brown";
+//     if (color == Colors.purple) return "purple";
+//   return "unknown";
+// }
+
 String getColorKey(Color color) {
-  if (color == Colors.blue) return "blue";
-   if (color == Colors.lightBlueAccent) return "lightblue";
-  if (color == Colors.yellow) return "yellow";
-  if (color == Colors.green) return "green";
-  if (color == Colors.red) return "red";
-   if (color == Colors.brown) return "brown";
-    if (color == Colors.purple) return "purple";
+  final c = color.toARGB32();
+
+  if (c == Colors.blue.toARGB32()) return "blue";
+  if (c == Colors.lightBlueAccent.toARGB32()) return "lightblue";
+  if (c == Colors.yellow.toARGB32()) return "yellow";
+  if (c == Colors.green.toARGB32()) return "green";
+  if (c == Colors.red.toARGB32()) return "red";
+  if (c == Colors.brown.toARGB32()) return "brown";
+  if (c == Colors.purple.toARGB32()) return "purple";
+
   return "unknown";
 }
-
 //Loads totals from database
 Future<void> loadTotalsFromFirestore(String groupId) async {
   final snapshot = await FirebaseFirestore.instance
@@ -4927,6 +6114,13 @@ Future<void> removedaPattern(Appointment appt) async {
       value: -value,
     );
 
+    await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: -value,
+);
+
     /// delete appointment
     await doc.reference.delete();
   }
@@ -5000,15 +6194,7 @@ Future<void> removedaPattern(Appointment appt) async {
           return match;
         });
 
-        // 🔥 Subtract totals from Firestore
-        await updateFirestoreTotal(
-          groupId: selectedGroup!,
-          month: date.month,
-          row: getRowIndex(date),
-          color: offset.value,
-          value: -value,
-        );
-
+       
         // 🔥 Subtract from monthlyValues
         final month = date.month;
         final dateMap = monthlyValues[month]?[date];
@@ -5092,6 +6278,15 @@ Future<void> updatePattern(Appointment appt, String newValue) async {
       color: color,
       value: diff,
     );
+
+    await updateWeeklyTotals(
+  groupId: selectedGroup!,
+  date: date,
+  color: color,
+  value: diff,
+);
+
+
   }
 
   await loadTotalsFromFirestore(selectedGroup!);
